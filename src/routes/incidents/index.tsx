@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { upvoteIncident } from "~/functions/incidents";
 
 export const Route = createFileRoute("/incidents/")({
   component: IncidentsPage,
@@ -40,6 +42,15 @@ const statusLabels: Record<string, string> = {
   resolved: "Resolved",
   dismissed: "Dismissed",
 };
+
+// Generate a stable anonymous fingerprint for upvote dedup
+function getFingerprint(): string {
+  const stored = localStorage.getItem("upvote_fingerprint");
+  if (stored) return stored;
+  const fp = crypto.randomUUID();
+  localStorage.setItem("upvote_fingerprint", fp);
+  return fp;
+}
 
 // Simulated data — replace with TanStack Query infinite query
 function generateMockIncidents(page: number): Incident[] {
@@ -83,8 +94,22 @@ function IncidentsPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>("all");
+  const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const upvoteMutation = useMutation({
+    mutationFn: (incidentId: string) =>
+      upvoteIncident({ data: { incidentId, fingerprint: getFingerprint() } }),
+    onSuccess: (_result, incidentId) => {
+      setUpvotedIds((prev) => new Set(prev).add(incidentId));
+      setIncidents((prev) =>
+        prev.map((i) =>
+          i.id === incidentId ? { ...i, upvotes: i.upvotes + 1 } : i
+        )
+      );
+    },
+  });
 
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return;
@@ -125,9 +150,8 @@ function IncidentsPage() {
       : incidents.filter((i) => i.type === filter);
 
   const handleUpvote = (id: string) => {
-    setIncidents((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, upvotes: i.upvotes + 1 } : i))
-    );
+    if (upvotedIds.has(id)) return;
+    upvoteMutation.mutate(id);
   };
 
   return (
@@ -201,7 +225,12 @@ function IncidentsPage() {
             </div>
             <button
               onClick={() => handleUpvote(incident.id)}
-              className="flex shrink-0 flex-col items-center gap-0.5 rounded-md border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              disabled={upvotedIds.has(incident.id)}
+              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-md border px-3 py-2 transition-colors ${
+                upvotedIds.has(incident.id)
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                  : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              }`}
             >
               <span className="text-xs">▲</span>
               <span className="text-xs font-semibold">{incident.upvotes}</span>

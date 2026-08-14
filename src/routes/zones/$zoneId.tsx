@@ -1,9 +1,28 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 export const Route = createFileRoute("/zones/$zoneId")({
   component: ZoneDetailPage,
+  notFoundComponent: ZoneNotFound,
 });
+
+function ZoneNotFound() {
+  return (
+    <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
+      <span className="text-6xl">📍</span>
+      <h2 className="mt-4 text-2xl font-bold">Zone Not Found</h2>
+      <p className="mt-2 text-[var(--color-text-muted)]">
+        The zone you're looking for doesn't exist or has been removed.
+      </p>
+      <Link
+        to="/zones"
+        className="mt-6 rounded-md bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+      >
+        Browse All Zones
+      </Link>
+    </div>
+  );
+}
 
 function ZoneDetailPage() {
   const { zoneId } = Route.useParams();
