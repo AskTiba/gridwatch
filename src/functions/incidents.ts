@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { db } from "~/db";
 import { incidentReports, upvotes } from "~/db/schema";
 import { eq, and, desc, count as drizzleCount } from "drizzle-orm";
+import { sendZoneNotification } from "./notifications";
 
 export const getIncidents = createServerFn({ method: "GET" })
   .validator((input: { zoneId?: string; type?: string; limit?: number; offset?: number }) => input)
@@ -53,9 +54,32 @@ export const createIncidentReport = createServerFn({ method: "POST" })
         status: "open",
         upvotes: 0,
       })
-      .returning({ id: incidentReports.id });
+      .returning({ id: incidentReports.id, zoneId: incidentReports.zoneId });
 
-    return result[0];
+    // Send push notification if zone subscribers exist
+    const incident = result[0];
+    if (incident.zoneId) {
+      const typeLabels: Record<string, string> = {
+        power_cut: "Power Cut",
+        water_leak: "Water Leak",
+        pothole: "Pothole",
+        street_light: "Street Light",
+        other: "Issue",
+      };
+      const label = typeLabels[data.type] || "Issue";
+
+      // Fire-and-forget — don't block the response
+      sendZoneNotification({
+        data: {
+          zoneId: incident.zoneId,
+          title: `New ${label} Reported`,
+          body: data.description.slice(0, 100),
+          url: `/zones/${incident.zoneId}`,
+        },
+      }).catch(() => {});
+    }
+
+    return incident;
   });
 
 export const upvoteIncident = createServerFn({ method: "POST" })

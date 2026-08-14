@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { MapView } from "~/components/MapView";
+import { usePushSubscription } from "~/hooks/usePushSubscription";
 
 export const Route = createFileRoute("/zones/$zoneId")({
   component: ZoneDetailPage,
@@ -30,22 +31,52 @@ function ZoneDetailPage() {
   const [activeTab, setActiveTab] = useState<"schedule" | "incidents" | "map">(
     "schedule"
   );
+  const push = usePushSubscription(zoneId);
+
+  const handleSubscribe = async () => {
+    if (push.permission === "default") {
+      const result = await push.requestPermission();
+      if (result !== "granted") return;
+    }
+    push.subscribe();
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <div className="flex items-center gap-3">
-          <a
-            href="/zones"
-            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-          >
-            ← Zones
-          </a>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <a
+                href="/zones"
+                className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              >
+                ← Zones
+              </a>
+            </div>
+            <h1 className="mt-2 text-3xl font-bold">Zone {zoneId}</h1>
+            <p className="mt-2 text-[var(--color-text-muted)]">
+              Grid schedule, active incidents, and area map.
+            </p>
+          </div>
+          {push.isSupported && (
+            <button
+              onClick={handleSubscribe}
+              disabled={push.isSubscribing || push.isSubscribed}
+              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                push.isSubscribed
+                  ? "bg-[var(--color-success)] text-[var(--color-success-foreground)]"
+                  : "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+              } disabled:opacity-50`}
+            >
+              {push.isSubscribing
+                ? "Subscribing..."
+                : push.isSubscribed
+                  ? "🔔 Subscribed"
+                  : "🔔 Subscribe to Alerts"}
+            </button>
+          )}
         </div>
-        <h1 className="mt-2 text-3xl font-bold">Zone {zoneId}</h1>
-        <p className="mt-2 text-[var(--color-text-muted)]">
-          Grid schedule, active incidents, and area map.
-        </p>
       </div>
 
       {/* Tabs */}
