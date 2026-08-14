@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getZones } from "~/functions/zones";
 
 export const Route = createFileRoute("/zones/")({
   component: ZonesPage,
@@ -10,6 +12,18 @@ function ZonesPage() {
   const [searchType, setSearchType] = useState<
     "postal" | "neighborhood" | "all"
   >("all");
+
+  const { data: zones = [], isLoading } = useQuery({
+    queryKey: ["zones", searchQuery, searchType],
+    queryFn: () =>
+      getZones({
+        data: {
+          search: searchType === "all" ? searchQuery : undefined,
+          postalCode: searchType === "postal" ? searchQuery : undefined,
+          neighborhood: searchType === "neighborhood" ? searchQuery : undefined,
+        },
+      }),
+  });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -71,129 +85,71 @@ function ZonesPage() {
         </div>
       </div>
 
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex items-center justify-center gap-2 py-12 text-[var(--color-text-muted)]">
+          <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span>Loading zones...</span>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && zones.length === 0 && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
+          <span className="text-4xl">📍</span>
+          <p className="mt-4 text-lg font-semibold">No zones found</p>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+            {searchQuery
+              ? `No zones match "${searchQuery}"`
+              : "No zones have been configured yet."}
+          </p>
+        </div>
+      )}
+
       {/* Zone Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <ZoneCard
-          name="Downtown Core"
-          neighborhood="CBD"
-          postalCode="8001"
-          status="operational"
-          powerStatus="no_outages"
-          waterStatus="no_outages"
-        />
-        <ZoneCard
-          name="Riverside"
-          neighborhood="Waterfront"
-          postalCode="8002"
-          status="warning"
-          powerStatus="scheduled"
-          waterStatus="no_outages"
-        />
-        <ZoneCard
-          name="Hillcrest"
-          neighborhood="North Ridge"
-          postalCode="8003"
-          status="operational"
-          powerStatus="no_outages"
-          waterStatus="no_outages"
-        />
-        <ZoneCard
-          name="Eastgate"
-          neighborhood="Industrial Park"
-          postalCode="8004"
-          status="critical"
-          powerStatus="active"
-          waterStatus="no_outages"
-        />
-        <ZoneCard
-          name="Sunset Valley"
-          neighborhood="Residential"
-          postalCode="8005"
-          status="operational"
-          powerStatus="no_outages"
-          waterStatus="scheduled"
-        />
-        <ZoneCard
-          name="Central Heights"
-          neighborhood="Midtown"
-          postalCode="8006"
-          status="operational"
-          powerStatus="no_outages"
-          waterStatus="no_outages"
-        />
+        {zones.map((zone) => (
+          <ZoneCard
+            key={zone.id}
+            id={zone.id}
+            name={zone.name}
+            neighborhood={zone.neighborhood}
+            postalCode={zone.postalCode}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
 function ZoneCard({
+  id,
   name,
   neighborhood,
   postalCode,
-  status,
-  powerStatus,
-  waterStatus,
 }: {
+  id: string;
   name: string;
-  neighborhood: string;
-  postalCode: string;
-  status: "operational" | "warning" | "critical";
-  powerStatus: "no_outages" | "scheduled" | "active";
-  waterStatus: "no_outages" | "scheduled" | "active";
+  neighborhood: string | null;
+  postalCode: string | null;
 }) {
-  const statusConfig = {
-    operational: {
-      bg: "bg-[var(--color-success)]",
-      label: "All Systems Operational",
-    },
-    warning: {
-      bg: "bg-[var(--color-warning)]",
-      label: "Issue Detected",
-    },
-    critical: {
-      bg: "bg-[var(--color-danger)]",
-      label: "Active Outage",
-    },
-  };
-
-  const utilityLabel = (status: "no_outages" | "scheduled" | "active") => {
-    switch (status) {
-      case "no_outages":
-        return { text: "Operational", color: "text-[var(--color-success)]" };
-      case "scheduled":
-        return { text: "Scheduled Maintenance", color: "text-[var(--color-warning)]" };
-      case "active":
-        return { text: "Active Outage", color: "text-[var(--color-danger)]" };
-    }
-  };
-
-  const power = utilityLabel(powerStatus);
-  const water = utilityLabel(waterStatus);
-
   return (
     <a
-      href={`/zones/${postalCode}`}
+      href={`/zones/${id}`}
       className="group block rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-all hover:border-[var(--color-primary)] hover:shadow-md"
     >
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold">{name}</h3>
           <p className="text-sm text-[var(--color-text-muted)]">
-            {neighborhood} · {postalCode}
+            {neighborhood ?? "Unknown neighborhood"}
+            {postalCode && ` · ${postalCode}`}
           </p>
         </div>
-        <span className={`h-3 w-3 rounded-full ${statusConfig[status].bg}`} />
-      </div>
-
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-[var(--color-text-muted)]">Power</span>
-          <span className={`font-medium ${power.color}`}>{power.text}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-[var(--color-text-muted)]">Water</span>
-          <span className={`font-medium ${water.color}`}>{water.text}</span>
-        </div>
+        <span className="h-3 w-3 rounded-full bg-[var(--color-success)]" />
       </div>
     </a>
   );

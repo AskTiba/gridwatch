@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { MapView } from "~/components/MapView";
 
 export const Route = createFileRoute("/zones/$zoneId")({
   component: ZoneDetailPage,
@@ -271,18 +272,28 @@ function ZoneIncidents() {
   );
 }
 
-function ZoneMap({ zoneId }: { zoneId: string }) {
+function ZoneMap(_props: { zoneId: string }) {
+  // Mock incident clusters for this zone — replace with real PostGIS query
+  const mockClusters = [
+    { id: "1", lat: -33.92, lng: 18.42, count: 3, type: "power_cut" as const },
+    { id: "2", lat: -33.93, lng: 18.43, count: 1, type: "water_leak" as const },
+    { id: "3", lat: -33.91, lng: 18.41, count: 2, type: "pothole" as const },
+  ];
+
   return (
-    <div className="flex h-[500px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="text-center">
-        <p className="text-lg font-semibold">Map View</p>
-        <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-          Interactive map for zone {zoneId} will be loaded here.
-        </p>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Integrating Leaflet with PostGIS spatial queries.
-        </p>
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Incident Map</h2>
+        <span className="text-sm text-[var(--color-text-muted)]">
+          {mockClusters.length} cluster{mockClusters.length !== 1 ? "s" : ""}
+        </span>
       </div>
+      <MapView
+        incidents={mockClusters}
+        center={[-33.9249, 18.4241]}
+        zoom={13}
+        className="h-[500px]"
+      />
     </div>
   );
 }

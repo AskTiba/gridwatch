@@ -1,23 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useCallback, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { upvoteIncident } from "~/functions/incidents";
+import { useState, useRef, useEffect } from "react";
+import { useMutation, useInfiniteQuery } from "@tanstack/react-query";
+import { upvoteIncident, getIncidents } from "~/functions/incidents";
 
 export const Route = createFileRoute("/incidents/")({
   component: IncidentsPage,
 });
-
-interface Incident {
-  id: string;
-  type: "power_cut" | "water_leak" | "pothole" | "street_light" | "other";
-  description: string;
-  neighborhood: string;
-  status: "open" | "confirmed" | "in_progress" | "resolved" | "dismissed";
-  upvotes: number;
-  time: string;
-  latitude: string;
-  longitude: string;
-}
 
 const typeIcons: Record<string, string> = {
   power_cut: "⚡",
@@ -52,86 +40,50 @@ function getFingerprint(): string {
   return fp;
 }
 
-// Simulated data — replace with TanStack Query infinite query
-function generateMockIncidents(page: number): Incident[] {
-  const types: Incident["type"][] = [
-    "power_cut",
-    "water_leak",
-    "pothole",
-    "street_light",
-    "other",
-  ];
-  const statuses: Incident["status"][] = [
-    "open",
-    "confirmed",
-    "in_progress",
-    "resolved",
-  ];
-  const neighborhoods = [
-    "Downtown",
-    "Riverside",
-    "Hillcrest",
-    "Eastgate",
-    "Sunset Valley",
-  ];
-
-  return Array.from({ length: 10 }, (_, i) => ({
-    id: `${page}-${i}`,
-    type: types[(page * 10 + i) % types.length],
-    description: `Reported issue #${page * 10 + i + 1} — citizen-reported infrastructure problem in the area.`,
-    neighborhood: neighborhoods[(page * 10 + i) % neighborhoods.length],
-    status: statuses[(page * 10 + i) % statuses.length],
-    upvotes: Math.floor(Math.random() * 20),
-    time: `${Math.floor(Math.random() * 23) + 1}h ago`,
-    latitude: (-33.92 + Math.random() * 0.1).toFixed(6),
-    longitude: (18.42 + Math.random() * 0.1).toFixed(6),
-  }));
-}
-
 function IncidentsPage() {
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>("all");
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteQuery({
+    queryKey: ["incidents", filter],
+    queryFn: ({ pageParam = 0 }) =>
+      getIncidents({
+        data: {
+          type: filter === "all" ? undefined : filter,
+          limit: 20,
+          offset: pageParam,
+        },
+      }),
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === 20 ? allPages.length * 20 : undefined,
+    initialPageParam: 0,
+  });
+
+  const incidents = data?.pages.flatMap((page) => page) ?? [];
 
   const upvoteMutation = useMutation({
     mutationFn: (incidentId: string) =>
       upvoteIncident({ data: { incidentId, fingerprint: getFingerprint() } }),
     onSuccess: (_result, incidentId) => {
       setUpvotedIds((prev) => new Set(prev).add(incidentId));
-      setIncidents((prev) =>
-        prev.map((i) =>
-          i.id === incidentId ? { ...i, upvotes: i.upvotes + 1 } : i
-        )
-      );
     },
   });
-
-  const loadMore = useCallback(() => {
-    if (loading || !hasMore) return;
-    setLoading(true);
-
-    // Simulate API delay
-    setTimeout(() => {
-      const newIncidents = generateMockIncidents(page);
-      setIncidents((prev) => [...prev, ...newIncidents]);
-      setPage((prev) => prev + 1);
-      setHasMore(page < 4); // max 5 pages
-      setLoading(false);
-    }, 500);
-  }, [page, loading, hasMore]);
 
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          loadMore();
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
         }
       },
       { threshold: 0.1 }
@@ -142,16 +94,21 @@ function IncidentsPage() {
     }
 
     return () => observerRef.current?.disconnect();
-  }, [loadMore]);
-
-  const filteredIncidents =
-    filter === "all"
-      ? incidents
-      : incidents.filter((i) => i.type === filter);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleUpvote = (id: string) => {
     if (upvotedIds.has(id)) return;
     upvoteMutation.mutate(id);
+  };
+
+  const formatTime = (date: Date | string) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   return (
@@ -194,29 +151,59 @@ function IncidentsPage() {
         ))}
       </div>
 
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex items-center justify-center gap-2 py-12 text-[var(--color-text-muted)]">
+          <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span>Loading incidents...</span>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && incidents.length === 0 && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
+          <span className="text-4xl">📋</span>
+          <p className="mt-4 text-lg font-semibold">No incidents reported yet</p>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+            Be the first to report an infrastructure issue in your area.
+          </p>
+          <a
+            href="/report"
+            className="mt-4 inline-block rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+          >
+            Report Issue
+          </a>
+        </div>
+      )}
+
       {/* Incident Feed */}
       <div className="space-y-3">
-        {filteredIncidents.map((incident) => (
+        {incidents.map((incident) => (
           <div
             key={incident.id}
             className="flex items-start gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-text-muted)]"
           >
             <span className="mt-0.5 text-2xl">
-              {typeIcons[incident.type]}
+              {typeIcons[incident.type] ?? "📋"}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`inline-flex h-2 w-2 rounded-full ${statusColors[incident.status]}`}
+                  className={`inline-flex h-2 w-2 rounded-full ${statusColors[incident.status] ?? "bg-[var(--color-text-muted)]"}`}
                 />
                 <span className="text-xs font-medium">
-                  {statusLabels[incident.status]}
+                  {statusLabels[incident.status] ?? incident.status}
                 </span>
+                {incident.neighborhood && (
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    · {incident.neighborhood}
+                  </span>
+                )}
                 <span className="text-xs text-[var(--color-text-muted)]">
-                  · {incident.neighborhood}
-                </span>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  · {incident.time}
+                  · {formatTime(incident.createdAt)}
                 </span>
               </div>
               <p className="mt-1.5 text-sm leading-relaxed">
@@ -241,31 +228,16 @@ function IncidentsPage() {
 
       {/* Load More Trigger */}
       <div ref={loadMoreRef} className="py-8 text-center">
-        {loading && (
+        {isFetchingNextPage && (
           <div className="flex items-center justify-center gap-2 text-[var(--color-text-muted)]">
-            <svg
-              className="h-4 w-4 animate-spin"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
             <span className="text-sm">Loading more incidents...</span>
           </div>
         )}
-        {!hasMore && incidents.length > 0 && (
+        {!hasNextPage && incidents.length > 0 && (
           <p className="text-sm text-[var(--color-text-muted)]">
             No more incidents to load.
           </p>
