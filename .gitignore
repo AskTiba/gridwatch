@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+*.log
+.vite
+.vscode/!.vscode/extensions.json
+src/routeTree.gen.ts
