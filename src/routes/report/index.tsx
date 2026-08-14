@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { createIncidentReport } from "~/functions/incidents";
 
 export const Route = createFileRoute("/report/")({
   component: ReportPage,
@@ -38,6 +40,23 @@ function ReportPage() {
   >("idle");
   const [submitted, setSubmitted] = useState(false);
 
+  const mutation = useMutation({
+    mutationFn: () =>
+      createIncidentReport({
+        data: {
+          type: form.type,
+          description: form.description,
+          latitude: form.latitude,
+          longitude: form.longitude,
+          neighborhood: form.neighborhood || undefined,
+          reporterName: form.reporterName || undefined,
+        },
+      }),
+    onSuccess: () => {
+      setSubmitted(true);
+    },
+  });
+
   const captureLocation = () => {
     if (!navigator.geolocation) {
       setLocationStatus("error");
@@ -63,7 +82,11 @@ function ReportPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (!form.latitude || !form.longitude) {
+      alert("Please capture your location first.");
+      return;
+    }
+    mutation.mutate();
   };
 
   if (submitted) {
@@ -283,10 +306,17 @@ function ReportPage() {
         {/* Submit */}
         <button
           type="submit"
-          className="w-full rounded-md bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] transition-colors hover:bg-[var(--color-primary-hover)]"
+          disabled={mutation.isPending}
+          className="w-full rounded-md bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] transition-colors hover:bg-[var(--color-primary-hover)] disabled:opacity-50"
         >
-          Submit Report
+          {mutation.isPending ? "Submitting..." : "Submit Report"}
         </button>
+
+        {mutation.isError && (
+          <p className="text-center text-sm text-[var(--color-danger)]">
+            Something went wrong. Please try again.
+          </p>
+        )}
 
         <p className="text-center text-xs text-[var(--color-text-muted)]">
           Your report will be public. Other citizens can confirm and upvote it
