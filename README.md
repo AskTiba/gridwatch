@@ -1,187 +1,263 @@
-Welcome to your new TanStack Start app!
+<div align="center">
 
-# Getting Started
+# ⚡ GridWatch
 
-To run this application:
+**Real-time municipal infrastructure monitoring — powered by citizens.**
+
+A full-stack platform for reporting power outages, water leaks, and municipal infrastructure issues, with zone-based tracking, interactive maps, and push notifications.
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue?logo=typescript)](https://typescriptlang.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
+[![TanStack Start](https://img.shields.io/badge/TanStack-Start-DC0032)](https://tanstack.com/start)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://postgresql.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
+
+</div>
+
+---
+
+## Overview
+
+GridWatch enables citizens to report infrastructure issues (power cuts, water leaks, potholes, broken street lights) in real-time. Reports are geotagged, zone-mapped, and visualized on an interactive map. Zone subscribers receive push notifications when new incidents are reported in their area.
+
+**Key value proposition:** Community-driven monitoring fills the gap between when an outage happens and when official crews arrive — giving residents real-time visibility into their neighborhood's infrastructure status.
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Zone Management** | Browse zones, view grid schedules, see active incidents per zone |
+| **Incident Reporting** | Submit geotagged reports with type, description, and optional photos |
+| **Live Incident Feed** | Infinite-scroll feed of all reported incidents with upvote support |
+| **Interactive Map** | Leaflet-powered map showing zones and incident locations |
+| **Push Notifications** | Browser push alerts when new incidents are reported in subscribed zones |
+| **Dark Mode** | Full dark/light theme support with system preference detection |
+| **Responsive Design** | Works across mobile, tablet, and desktop viewports |
+
+## Tech Stack
+
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| **Framework** | [TanStack Start](https://tanstack.com/start) | Full-stack React with SSR, file-based routing, server functions |
+| **Routing** | [TanStack Router](https://tanstack.com/router) | Type-safe file-based routing with automatic code splitting |
+| **Data Fetching** | [TanStack Query](https://tanstack.com/query) | Server state management with caching, infinite scroll, mutations |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com) | Utility-first CSS with custom design tokens |
+| **Database** | [PostgreSQL](https://postgresql.org) + [PostGIS](https://postgis.net) | Geospatial queries for zone/incident proximity |
+| **ORM** | [Drizzle ORM](https://orm.drizzle.team) | Type-safe SQL, zero-overhead, PostgreSQL-native |
+| **Maps** | [Leaflet](https://leafletjs.com) + [React-Leaflet](https://react-leaflet.js.org) | Interactive maps with zone boundaries and incident markers |
+| **Notifications** | [Web Push](https://developers.google.com/web/fundamentals/push-notifications) | VAPID-authenticated browser push notifications |
+| **Testing** | [Vitest](https://vitest.dev) + [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) | Component and integration testing |
+| **Build** | [Vite](https://vitejs.dev) | Fast HMR, optimized production builds |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      CLIENT (Browser)                    │
+│  React 19 + TanStack Router + TanStack Query + Leaflet  │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
+│  │  Zones   │ │ Incidents│ │  Report  │ │    Map    │  │
+│  │  Page    │ │  Feed    │ │   Form   │ │   View    │  │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬─────┘  │
+│       └─────────────┼───────────┼──────────────┘        │
+│                     │           │                        │
+│              TanStack Query   TanStack Form              │
+└─────────────────────┼───────────┼───────────────────────┘
+                      │           │
+              ┌───────▼───────────▼───────┐
+              │    TanStack Start Server   │
+              │    (Server Functions)      │
+              │  ┌─────────────────────┐   │
+              │  │  getZones           │   │
+              │  │  getIncidents       │   │
+              │  │  createIncident     │───┼──► Push Notification
+              │  │  upvoteIncident     │   │
+              │  │  subscribeToPush    │   │
+              │  └─────────┬───────────┘   │
+              └────────────┼───────────────┘
+                           │
+              ┌────────────▼───────────────┐
+              │  PostgreSQL + PostGIS       │
+              │  ┌───────┐ ┌───────────┐   │
+              │  │ zones │ │ incidents │   │
+              │  └───────┘ └───────────┘   │
+              │  ┌────────┐ ┌──────────┐   │
+              │  │outages │ │upvotes   │   │
+              │  └────────┘ └──────────┘   │
+              │  ┌──────────────────────┐   │
+              │  │notification_subs     │   │
+              │  └──────────────────────┘   │
+              └────────────────────────────┘
+```
+
+## Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org) 18+
+- [Docker](https://docker.com) (for local PostgreSQL)
+- [pnpm](https://pnpm.io)
+
+### Installation
 
 ```bash
-npm install
-npm run dev
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/gridwatch.git
+cd gridwatch
+
+# Install dependencies
+pnpm install
+
+# Start PostgreSQL (via Docker)
+docker run -d \
+  --name gridwatch-pg \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=gridwatch \
+  -p 5432:5432 \
+  postgres:16-alpine
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your database URL and VAPID keys
+
+# Push database schema
+pnpm exec dotenv -e .env.local -- pnpm exec drizzle-kit push
+
+# Seed test zones (optional)
+docker exec gridwatch-pg psql -U postgres -d gridwatch -c "
+INSERT INTO zones (id, name, neighborhood, municipality, geom_wkt) VALUES
+('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'Zone 1 - Downtown', 'Downtown Central', 'Springfield', 'POINT(-74.0060 40.7128)'),
+('b2c3d4e5-f6a7-8901-bcde-f12345678901', 'Zone 2 - Riverside', 'Riverside District', 'Springfield', 'POINT(-74.0030 40.7148)'),
+('c3d4e5f6-a7b8-9012-cdef-123456789012', 'Zone 3 - Hillcrest', 'Hillcrest Heights', 'Springfield', 'POINT(-74.0090 40.7108)');
+"
+
+# Start the dev server
+pnpm dev
 ```
 
-# Building For Production
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-To build this application for production:
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `VAPID_PUBLIC_KEY` | Web Push VAPID public key | For notifications |
+| `VAPID_PRIVATE_KEY` | Web Push VAPID private key | For notifications |
+| `VAPID_EMAIL` | Contact email for VAPID | For notifications |
+
+Generate VAPID keys with:
+```bash
+npx web-push generate-vapid-keys
+```
+
+## Database Schema
+
+```
+zones ──────────┐
+                │
+outages ────────┤
+                │
+incident_reports ├─── upvotes
+                │
+notification_subscriptions
+```
+
+- **zones** — Geographic zones with PostGIS geometry
+- **outages** — Scheduled and active power/water outages
+- **incident_reports** — Citizen-submitted infrastructure reports
+- **upvotes** — Fingerprint-based deduped upvotes on incidents
+- **notification_subscriptions** — Push notification subscriptions per zone
+
+## Project Structure
+
+```
+gridwatch/
+├── public/
+│   └── sw.js                    # Service worker for push notifications
+├── src/
+│   ├── components/
+│   │   ├── Header.tsx           # App header with navigation
+│   │   ├── Footer.tsx           # App footer
+│   │   ├── MapView.tsx          # Leaflet map (client-only)
+│   │   └── ThemeToggle.tsx      # Dark/light mode toggle
+│   ├── db/
+│   │   ├── index.ts             # Drizzle database client
+│   │   └── schema.ts            # PostgreSQL schema (5 tables)
+│   ├── functions/
+│   │   ├── incidents.ts         # Incident CRUD + upvotes
+│   │   ├── notifications.ts     # Push notification management
+│   │   └── zones.ts             # Zone queries + outages
+│   ├── hooks/
+│   │   └── usePushSubscription.ts # Push subscription React hook
+│   ├── routes/
+│   │   ├── __root.tsx           # Root layout
+│   │   ├── index.tsx            # Home page
+│   │   ├── zones/
+│   │   │   ├── index.tsx        # Zone lookup
+│   │   │   └── $zoneId.tsx      # Zone detail
+│   │   ├── incidents/
+│   │   │   └── index.tsx        # Incident feed
+│   │   └── report/
+│   │       └── index.tsx        # Report form
+│   ├── router.tsx               # TanStack Router config
+│   └── styles.css               # Tailwind + design tokens
+├── drizzle.config.ts            # Drizzle Kit configuration
+├── vite.config.ts               # Vite + TanStack Start config
+└── package.json
+```
+
+## Testing
 
 ```bash
-npm run build
+# Run all tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run type checking
+pnpm typecheck
+
+# Run linting
+pnpm lint
 ```
 
-## Styling
+**Test coverage:** 31 tests across 8 test files covering components, server functions, and routes.
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+| Category | What's Tested |
+|----------|---------------|
+| Components | Header, Footer, MapView rendering and interactions |
+| Server Functions | Zone queries, incident CRUD, notification subscriptions |
+| Routes | Home page, report form submission and validation |
 
-### Removing Tailwind CSS
+## Deployment
 
-If you prefer not to use Tailwind CSS:
+### Vercel (Recommended)
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
+1. Push to GitHub
+2. Import repository in [Vercel Dashboard](https://vercel.com)
+3. Set environment variables (see [Environment Variables](#environment-variables))
+4. Deploy — Vercel handles build and serverless functions automatically
 
+### Database (Neon)
 
+For production, use [Neon](https://neon.tech) (serverless PostgreSQL):
 
-## Routing
+1. Create a Neon project
+2. Copy the connection string to `DATABASE_URL`
+3. Run `npx drizzle-kit push` against the Neon database
+4. Vercel + Neon = zero-config serverless deployment
 
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
+## License
 
-### Adding A Route
+MIT
 
-To add a new route to your application just add a new file in the `./src/routes` directory.
+---
 
-TanStack will automatically generate the content of the route file for you.
+<div align="center">
 
-Now that you have two routes you can use a `Link` component to navigate between them.
+**Built with** [TanStack](https://tanstack.com) **•** [React](https://react.dev) **•** [PostgreSQL](https://postgresql.org) **•** [Drizzle](https://orm.drizzle.team)
 
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+</div>
