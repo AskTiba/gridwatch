@@ -1,12 +1,28 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Footer } from "./Footer";
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    to,
+    children,
+    className,
+  }: {
+    to: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
+}));
 
 describe("Footer", () => {
   it("renders the brand description", () => {
     render(<Footer />);
     expect(
-      screen.getByText(/community-driven infrastructure monitoring/i)
+      screen.getByText(/community-driven infrastructure monitoring/i),
     ).toBeInTheDocument();
   });
 

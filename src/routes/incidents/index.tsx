@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { upvoteIncident, getIncidents } from "~/functions/incidents";
@@ -31,7 +31,6 @@ const statusLabels: Record<string, string> = {
   dismissed: "Dismissed",
 };
 
-// Generate a stable anonymous fingerprint for upvote dedup
 function getFingerprint(): string {
   const stored = localStorage.getItem("upvote_fingerprint");
   if (stored) return stored;
@@ -86,7 +85,7 @@ function IncidentsPage() {
           fetchNextPage();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     if (loadMoreRef.current) {
@@ -112,20 +111,20 @@ function IncidentsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Incidents</h1>
-          <p className="mt-1 text-[var(--color-text-muted)]">
+          <p className="mt-1.5 text-[var(--color-text-secondary)]">
             Live feed of citizen-reported infrastructure issues.
           </p>
         </div>
-        <a
-          href="/report"
-          className="inline-flex items-center justify-center rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+        <Link
+          to="/report"
+          className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
         >
           + Report Issue
-        </a>
+        </Link>
       </div>
 
       {/* Filters */}
@@ -140,10 +139,10 @@ function IncidentsPage() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-all duration-150 ${
               filter === f.key
-                ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
-                : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)]"
+                ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-sm"
+                : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
             }`}
           >
             {f.label}
@@ -153,29 +152,46 @@ function IncidentsPage() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="flex items-center justify-center gap-2 py-12 text-[var(--color-text-muted)]">
-          <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        <div className="flex items-center justify-center gap-2.5 py-16 text-[var(--color-text-muted)]">
+          <svg
+            className="h-5 w-5 animate-spin"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
           </svg>
-          <span>Loading incidents...</span>
+          <span className="text-sm">Loading incidents...</span>
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && incidents.length === 0 && (
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center shadow-sm">
           <span className="text-4xl">📋</span>
-          <p className="mt-4 text-lg font-semibold">No incidents reported yet</p>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-4 text-lg font-semibold">
+            No incidents reported yet
+          </p>
+          <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
             Be the first to report an infrastructure issue in your area.
           </p>
-          <a
-            href="/report"
-            className="mt-4 inline-block rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+          <Link
+            to="/report"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
           >
             Report Issue
-          </a>
+          </Link>
         </div>
       )}
 
@@ -184,7 +200,7 @@ function IncidentsPage() {
         {incidents.map((incident) => (
           <div
             key={incident.id}
-            className="flex items-start gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-text-muted)]"
+            className="flex items-start gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm transition-all duration-200 hover:border-[var(--color-text-muted)] hover:shadow-md"
           >
             <span className="mt-0.5 text-2xl">
               {typeIcons[incident.type] ?? "📋"}
@@ -206,16 +222,16 @@ function IncidentsPage() {
                   · {formatTime(incident.createdAt)}
                 </span>
               </div>
-              <p className="mt-1.5 text-sm leading-relaxed">
+              <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
                 {incident.description}
               </p>
             </div>
             <button
               onClick={() => handleUpvote(incident.id)}
               disabled={upvotedIds.has(incident.id)}
-              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-md border px-3 py-2 transition-colors ${
+              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-lg border px-3 py-2 transition-all duration-150 ${
                 upvotedIds.has(incident.id)
-                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
                   : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
               }`}
             >
@@ -229,10 +245,25 @@ function IncidentsPage() {
       {/* Load More Trigger */}
       <div ref={loadMoreRef} className="py-8 text-center">
         {isFetchingNextPage && (
-          <div className="flex items-center justify-center gap-2 text-[var(--color-text-muted)]">
-            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          <div className="flex items-center justify-center gap-2.5 text-[var(--color-text-muted)]">
+            <svg
+              className="h-4 w-4 animate-spin"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
             </svg>
             <span className="text-sm">Loading more incidents...</span>
           </div>

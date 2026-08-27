@@ -1,58 +1,112 @@
 import { useEffect, useState } from "react";
 
+type Theme = "system" | "light" | "dark";
+
+function getSystemTheme(): "light" | "dark" {
+  if (typeof window === "undefined" || !window.matchMedia) return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  root.classList.remove("light", "dark");
+  if (theme === "system") {
+    root.classList.add(getSystemTheme());
+  } else {
+    root.classList.add(theme);
+  }
+}
+
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<Theme>("system");
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme") as "light" | "dark" | null;
-    const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-    const initial = saved ?? preferred;
+    const saved = localStorage.getItem("theme") as Theme | null;
+    const initial = saved ?? "system";
     setTheme(initial);
-    document.documentElement.classList.toggle("dark", initial === "dark");
+    applyTheme(initial);
+
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => {
+      if ((localStorage.getItem("theme") as Theme) === "system") {
+        applyTheme("system");
+      }
+    };
+    mq?.addEventListener("change", handler);
+    return () => mq?.removeEventListener("change", handler);
   }, []);
 
-  const toggle = () => {
-    const next = theme === "light" ? "dark" : "light";
+  const cycle = () => {
+    const order: Theme[] = ["system", "light", "dark"];
+    const next = order[(order.indexOf(theme) + 1) % order.length];
     setTheme(next);
     localStorage.setItem("theme", next);
-    document.documentElement.classList.toggle("dark", next === "dark");
+    applyTheme(next);
+  };
+
+  const labels: Record<Theme, string> = {
+    system: "System theme (follows OS setting)",
+    light: "Light theme",
+    dark: "Dark theme",
   };
 
   return (
     <button
-      onClick={toggle}
-      className="rounded-md p-2 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
-      aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+      onClick={cycle}
+      className="rounded-lg p-2 text-[var(--color-text-muted)] transition-all duration-150 hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-primary)]"
+      aria-label={labels[theme]}
+      title={labels[theme]}
     >
-      {theme === "light" ? (
+      {theme === "system" && (
         <svg
           className="h-5 w-5"
           fill="none"
           viewBox="0 0 24 24"
-          strokeWidth={1.5}
+          strokeWidth={2}
           stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"
-          />
+          <rect width="20" height="14" x="2" y="3" rx="2" />
+          <path d="M8 21h8" />
+          <path d="M12 17v4" />
         </svg>
-      ) : (
+      )}
+      {theme === "light" && (
         <svg
           className="h-5 w-5"
           fill="none"
           viewBox="0 0 24 24"
-          strokeWidth={1.5}
+          strokeWidth={2}
           stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
-          />
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2" />
+          <path d="M12 20v2" />
+          <path d="m4.93 4.93 1.41 1.41" />
+          <path d="m17.66 17.66 1.41 1.41" />
+          <path d="M2 12h2" />
+          <path d="M20 12h2" />
+          <path d="m6.34 17.66-1.41 1.41" />
+          <path d="m19.07 4.93-1.41 1.41" />
+        </svg>
+      )}
+      {theme === "dark" && (
+        <svg
+          className="h-5 w-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
         </svg>
       )}
     </button>

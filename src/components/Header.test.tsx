@@ -24,8 +24,7 @@ vi.mock("@tanstack/react-router", () => ({
 describe("Header", () => {
   it("renders the logo and brand name", () => {
     render(<Header />);
-    expect(screen.getByText("MU")).toBeInTheDocument();
-    expect(screen.getByText("Utility Monitor")).toBeInTheDocument();
+    expect(screen.getByText("GridWatch")).toBeInTheDocument();
   });
 
   it("renders all navigation links", () => {

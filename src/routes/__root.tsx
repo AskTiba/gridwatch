@@ -4,6 +4,7 @@ import {
   createRootRoute,
   HeadContent,
   Scripts,
+  Link,
 } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "~/integrations/tanstack-query/root-provider";
@@ -19,11 +20,16 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Community dashboard for real-time power outages, water leaks, and municipal infrastructure monitoring.",
+          "GridWatch — Community dashboard for real-time power outages, water leaks, and municipal infrastructure monitoring.",
       },
-      { title: "Municipal Utility Monitor" },
+      { title: "GridWatch — Municipal Utility Monitor" },
     ],
     links: [
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg",
+      },
       {
         rel: "preconnect",
         href: "https://fonts.googleapis.com",
@@ -63,6 +69,11 @@ function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches);document.documentElement.classList.add(d?"dark":"light")}catch(e){}})()`,
+          }}
+        />
         <HeadContent />
       </head>
       <body className="bg-[var(--color-bg)] text-[var(--color-text)]">
@@ -78,15 +89,15 @@ function NotFoundPage() {
     <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
       <span className="text-6xl">🔍</span>
       <h1 className="mt-4 text-3xl font-bold">Page Not Found</h1>
-      <p className="mt-2 text-[var(--color-text-muted)]">
+      <p className="mt-2 text-[var(--color-text-secondary)]">
         The page you're looking for doesn't exist or has been moved.
       </p>
-      <a
-        href="/"
-        className="mt-6 rounded-md bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+      <Link
+        to="/"
+        className="mt-6 inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
       >
         Go Home
-      </a>
+      </Link>
     </div>
   );
 }

@@ -13,12 +13,12 @@ function ZoneNotFound() {
     <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
       <span className="text-6xl">📍</span>
       <h2 className="mt-4 text-2xl font-bold">Zone Not Found</h2>
-      <p className="mt-2 text-[var(--color-text-muted)]">
+      <p className="mt-2 text-[var(--color-text-secondary)]">
         The zone you're looking for doesn't exist or has been removed.
       </p>
       <Link
         to="/zones"
-        className="mt-6 rounded-md bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+        className="mt-6 inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
       >
         Browse All Zones
       </Link>
@@ -29,7 +29,7 @@ function ZoneNotFound() {
 function ZoneDetailPage() {
   const { zoneId } = Route.useParams();
   const [activeTab, setActiveTab] = useState<"schedule" | "incidents" | "map">(
-    "schedule"
+    "schedule",
   );
   const push = usePushSubscription(zoneId);
 
@@ -47,15 +47,15 @@ function ZoneDetailPage() {
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <a
-                href="/zones"
-                className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              <Link
+                to="/zones"
+                className="text-sm text-[var(--color-text-muted)] transition-colors duration-150 hover:text-[var(--color-primary)]"
               >
                 ← Zones
-              </a>
+              </Link>
             </div>
             <h1 className="mt-2 text-3xl font-bold">Zone {zoneId}</h1>
-            <p className="mt-2 text-[var(--color-text-muted)]">
+            <p className="mt-1.5 text-[var(--color-text-secondary)]">
               Grid schedule, active incidents, and area map.
             </p>
           </div>
@@ -63,10 +63,10 @@ function ZoneDetailPage() {
             <button
               onClick={handleSubscribe}
               disabled={push.isSubscribing || push.isSubscribed}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-150 ${
                 push.isSubscribed
                   ? "bg-[var(--color-success)] text-[var(--color-success-foreground)]"
-                  : "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+                  : "bg-[var(--color-primary)] text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)] hover:shadow-md"
               } disabled:opacity-50`}
             >
               {push.isSubscribing
@@ -91,7 +91,7 @@ function ZoneDetailPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`border-b-2 px-4 py-3 text-sm font-medium transition-all duration-150 ${
               activeTab === tab.key
                 ? "border-[var(--color-primary)] text-[var(--color-primary)]"
                 : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
@@ -153,17 +153,17 @@ function GridSchedule() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
+      <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] shadow-sm">
         <table className="w-full min-w-[800px]">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-              <th className="px-3 py-2 text-left text-xs font-medium text-[var(--color-text-muted)]">
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--color-text-muted)]">
                 Hour
               </th>
               {days.map((day) => (
                 <th
                   key={day}
-                  className="px-3 py-2 text-center text-xs font-medium text-[var(--color-text-muted)]"
+                  className="px-3 py-2.5 text-center text-xs font-medium text-[var(--color-text-muted)]"
                 >
                   {day}
                 </th>
@@ -184,7 +184,7 @@ function GridSchedule() {
                     (o) =>
                       o.day === dayIndex &&
                       hour >= o.startHour &&
-                      hour < o.endHour
+                      hour < o.endHour,
                   );
                   return (
                     <td
@@ -192,8 +192,8 @@ function GridSchedule() {
                       className={`px-1 py-1 ${
                         outage
                           ? outage.type === "power"
-                            ? "bg-[var(--color-primary)]/10"
-                            : "bg-[var(--color-warning)]/10"
+                            ? "bg-[var(--color-primary-subtle)]"
+                            : "bg-[var(--color-warning-subtle)]"
                           : ""
                       }`}
                     >
@@ -261,21 +261,21 @@ function ZoneIncidents() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Reported Incidents</h2>
-        <a
-          href="/report"
-          className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+        <Link
+          to="/report"
+          className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
         >
           + Report Issue
-        </a>
+        </Link>
       </div>
 
       <div className="space-y-3">
         {incidents.map((incident) => (
           <div
             key={incident.id}
-            className="flex items-start gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+            className="flex items-start gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm transition-all duration-200 hover:shadow-md"
           >
-            <span className="text-2xl">
+            <span className="mt-0.5 text-2xl">
               {typeIcons[incident.type] ?? "📋"}
             </span>
             <div className="flex-1">
@@ -290,9 +290,11 @@ function ZoneIncidents() {
                   · {incident.time}
                 </span>
               </div>
-              <p className="mt-1 text-sm">{incident.description}</p>
+              <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
+                {incident.description}
+              </p>
             </div>
-            <button className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg)]">
+            <button className="flex shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-muted)] transition-all duration-150 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">
               <span>▲</span>
               <span>{incident.upvotes}</span>
             </button>
@@ -304,11 +306,28 @@ function ZoneIncidents() {
 }
 
 function ZoneMap(_props: { zoneId: string }) {
-  // Mock incident clusters for this zone — replace with real PostGIS query
   const mockClusters = [
-    { id: "1", lat: -33.92, lng: 18.42, count: 3, type: "power_cut" as const },
-    { id: "2", lat: -33.93, lng: 18.43, count: 1, type: "water_leak" as const },
-    { id: "3", lat: -33.91, lng: 18.41, count: 2, type: "pothole" as const },
+    {
+      id: "1",
+      lat: -33.92,
+      lng: 18.42,
+      count: 3,
+      type: "power_cut" as const,
+    },
+    {
+      id: "2",
+      lat: -33.93,
+      lng: 18.43,
+      count: 1,
+      type: "water_leak" as const,
+    },
+    {
+      id: "3",
+      lat: -33.91,
+      lng: 18.41,
+      count: 2,
+      type: "pothole" as const,
+    },
   ];
 
   return (
@@ -323,7 +342,7 @@ function ZoneMap(_props: { zoneId: string }) {
         incidents={mockClusters}
         center={[-33.9249, 18.4241]}
         zoom={13}
-        className="h-[500px]"
+        className="h-[500px] rounded-xl shadow-sm"
       />
     </div>
   );

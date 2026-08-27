@@ -27,12 +27,13 @@ GridWatch enables citizens to report infrastructure issues (power cuts, water le
 | Feature | Description |
 |---------|-------------|
 | **Zone Management** | Browse zones, view grid schedules, see active incidents per zone |
-| **Incident Reporting** | Submit geotagged reports with type, description, and optional photos |
+| **Incident Reporting** | Submit geotagged reports with type, description, and location capture |
 | **Live Incident Feed** | Infinite-scroll feed of all reported incidents with upvote support |
 | **Interactive Map** | Leaflet-powered map showing zones and incident locations |
 | **Push Notifications** | Browser push alerts when new incidents are reported in subscribed zones |
-| **Dark Mode** | Full dark/light theme support with system preference detection |
-| **Responsive Design** | Works across mobile, tablet, and desktop viewports |
+| **Theme System** | System/Light/Dark toggle with OS preference detection and localStorage persistence |
+| **Responsive Design** | Mobile-first layout across all viewports (320px → ultrawide) |
+| **Accessibility** | WCAG 2.2 AA — semantic HTML, keyboard navigation, focus rings, screen reader support |
 
 ## Tech Stack
 
@@ -48,6 +49,22 @@ GridWatch enables citizens to report infrastructure issues (power cuts, water le
 | **Notifications** | [Web Push](https://developers.google.com/web/fundamentals/push-notifications) | VAPID-authenticated browser push notifications |
 | **Testing** | [Vitest](https://vitest.dev) + [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) | Component and integration testing |
 | **Build** | [Vite](https://vitejs.dev) | Fast HMR, optimized production builds |
+
+## Design System
+
+The UI follows a token-based design system for consistency across light, dark, and system themes.
+
+| Token | Purpose |
+|-------|---------|
+| `--color-primary` | Indigo-based trust palette (light: `#3730a3`, dark: `#818cf8`) |
+| `--color-surface` / `--color-surface-elevated` | Layered surfaces with dark mode elevation |
+| `--color-*-subtle` | Tinted backgrounds for primary, danger, warning, success states |
+| `--shadow-sm/md/lg` | Progressive elevation system |
+| `--radius` / `--radius-lg` / `--radius-xl` | Consistent border radius scale |
+
+**Motion:** CSS transitions (150–200ms) on all interactive elements, entrance animations with stagger delays, `prefers-reduced-motion` fully respected.
+
+**Typography:** Inter font family, `text-wrap: balance` on headings, `text-wrap: pretty` on paragraphs, fluid spacing.
 
 ## Architecture
 
@@ -114,9 +131,9 @@ pnpm exec dotenv -e .env.local -- pnpm exec drizzle-kit push
 # Seed test zones (optional)
 docker exec gridwatch-pg psql -U postgres -d gridwatch -c "
 INSERT INTO zones (id, name, neighborhood, municipality, geom_wkt) VALUES
-('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'Zone 1 - Downtown', 'Downtown Central', 'Springfield', 'POINT(-74.0060 40.7128)'),
-('b2c3d4e5-f6a7-8901-bcde-f12345678901', 'Zone 2 - Riverside', 'Riverside District', 'Springfield', 'POINT(-74.0030 40.7148)'),
-('c3d4e5f6-a7b8-9012-cdef-123456789012', 'Zone 3 - Hillcrest', 'Hillcrest Heights', 'Springfield', 'POINT(-74.0090 40.7108)');
+('zone-1', 'Zone 1 - Downtown', 'Downtown Central', 'Springfield', 'POINT(-74.0060 40.7128)'),
+('zone-2', 'Zone 2 - Riverside', 'Riverside District', 'Springfield', 'POINT(-74.0030 40.7148)'),
+('zone-3', 'Zone 3 - Hillcrest', 'Hillcrest Heights', 'Springfield', 'POINT(-74.0090 40.7108)');
 "
 
 # Start the dev server
@@ -272,14 +289,16 @@ pnpm lint
 3. Set environment variables (see [Environment Variables](#environment-variables))
 4. Deploy — Vercel handles build and serverless functions automatically
 
-### Database (Neon)
+### Database (Supabase)
 
-For production, use [Neon](https://neon.tech) (serverless PostgreSQL):
+For production, use [Supabase](https://supabase.com) (always-on PostgreSQL):
 
-1. Create a Neon project
-2. Copy the connection string to `DATABASE_URL`
-3. Run `npx drizzle-kit push` against the Neon database
-4. Vercel + Neon = zero-config serverless deployment
+1. Create a Supabase project
+2. Copy the connection string from **Settings > Database** (use the `Transaction` mode pooler URL)
+3. Set `DATABASE_URL` in Vercel environment variables
+4. Run `pnpm exec dotenv -e .env.local -- pnpm exec drizzle-kit push` against Supabase to create tables
+5. Seed zones into the production database
+6. Vercel + Supabase = zero-config deployment with no cold starts
 
 ## License
 

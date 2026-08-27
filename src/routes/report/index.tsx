@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { createIncidentReport } from "~/functions/incidents";
@@ -7,7 +7,12 @@ export const Route = createFileRoute("/report/")({
   component: ReportPage,
 });
 
-type ReportType = "power_cut" | "water_leak" | "pothole" | "street_light" | "other";
+type ReportType =
+  | "power_cut"
+  | "water_leak"
+  | "pothole"
+  | "street_light"
+  | "other";
 
 interface ReportForm {
   type: ReportType;
@@ -76,7 +81,7 @@ function ReportPage() {
       () => {
         setLocationStatus("error");
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000 },
     );
   };
 
@@ -91,21 +96,21 @@ function ReportPage() {
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6 lg:px-8">
-        <div className="rounded-lg border border-[var(--color-success)]/20 bg-[var(--color-success)]/5 p-8">
+      <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
+        <div className="rounded-xl border border-[var(--color-success)]/20 bg-[var(--color-success-subtle)] p-10 shadow-sm">
           <span className="text-4xl">✅</span>
           <h2 className="mt-4 text-2xl font-bold">Report Submitted</h2>
-          <p className="mt-2 text-[var(--color-text-muted)]">
+          <p className="mx-auto mt-3 max-w-md text-[var(--color-text-secondary)]">
             Thank you for reporting this issue. Other citizens can now confirm
             and upvote your report to increase its visibility.
           </p>
-          <div className="mt-6 flex justify-center gap-4">
-            <a
-              href="/incidents"
-              className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+          <div className="mt-8 flex justify-center gap-3">
+            <Link
+              to="/incidents"
+              className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
             >
               View All Incidents
-            </a>
+            </Link>
             <button
               onClick={() => {
                 setSubmitted(false);
@@ -118,7 +123,7 @@ function ReportPage() {
                   reporterName: "",
                 });
               }}
-              className="rounded-md border border-[var(--color-border)] px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface)]"
+              className="inline-flex items-center justify-center rounded-lg border border-[var(--color-border)] px-5 py-2.5 text-sm font-medium transition-all duration-150 hover:bg-[var(--color-surface-elevated)]"
             >
               Submit Another
             </button>
@@ -129,10 +134,10 @@ function ReportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Report an Issue</h1>
-        <p className="mt-2 text-[var(--color-text-muted)]">
+        <p className="mt-2 text-[var(--color-text-secondary)]">
           Report infrastructure problems in your area. Your location helps others
           nearby confirm the issue.
         </p>
@@ -149,15 +154,17 @@ function ReportPage() {
               <button
                 key={rt.value}
                 type="button"
-                onClick={() => setForm((prev) => ({ ...prev, type: rt.value }))}
-                className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
+                onClick={() =>
+                  setForm((prev) => ({ ...prev, type: rt.value }))
+                }
+                className={`flex items-center gap-2.5 rounded-xl border p-3.5 text-left text-sm transition-all duration-150 ${
                   form.type === rt.value
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 text-[var(--color-primary)]"
-                    : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)] text-[var(--color-primary)] shadow-sm"
+                    : "border-[var(--color-border)] hover:border-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)]"
                 }`}
               >
                 <span className="text-lg">{rt.icon}</span>
-                <span>{rt.label}</span>
+                <span className="font-medium">{rt.label}</span>
               </button>
             ))}
           </div>
@@ -180,18 +187,18 @@ function ReportPage() {
               setForm((prev) => ({ ...prev, description: e.target.value }))
             }
             placeholder="What happened? When did you first notice it? How severe is it?"
-            className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
+            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-sm outline-none transition-colors duration-150 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
           />
         </div>
 
         {/* Location */}
         <fieldset>
           <legend className="mb-2 text-sm font-medium">Location</legend>
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 {form.latitude && form.longitude ? (
-                  <p className="text-sm">
+                  <p className="text-sm font-medium">
                     📍 {form.latitude}, {form.longitude}
                   </p>
                 ) : (
@@ -200,12 +207,12 @@ function ReportPage() {
                   </p>
                 )}
                 {locationStatus === "loading" && (
-                  <p className="text-xs text-[var(--color-text-muted)]">
+                  <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
                     Getting location...
                   </p>
                 )}
                 {locationStatus === "error" && (
-                  <p className="text-xs text-[var(--color-danger)]">
+                  <p className="mt-0.5 text-xs text-[var(--color-danger)]">
                     Could not get location. Please enable location services.
                   </p>
                 )}
@@ -213,9 +220,11 @@ function ReportPage() {
               <button
                 type="button"
                 onClick={captureLocation}
-                className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:bg-[var(--color-primary-hover)]"
+                className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
               >
-                {locationStatus === "success" ? "Update Location" : "Get My Location"}
+                {locationStatus === "success"
+                  ? "Update Location"
+                  : "Get My Location"}
               </button>
             </div>
 
@@ -223,7 +232,7 @@ function ReportPage() {
               <div>
                 <label
                   htmlFor="latitude"
-                  className="mb-1 block text-xs text-[var(--color-text-muted)]"
+                  className="mb-1 block text-xs font-medium text-[var(--color-text-muted)]"
                 >
                   Latitude
                 </label>
@@ -235,13 +244,13 @@ function ReportPage() {
                     setForm((prev) => ({ ...prev, latitude: e.target.value }))
                   }
                   placeholder="-33.9249"
-                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none transition-colors duration-150 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                 />
               </div>
               <div>
                 <label
                   htmlFor="longitude"
-                  className="mb-1 block text-xs text-[var(--color-text-muted)]"
+                  className="mb-1 block text-xs font-medium text-[var(--color-text-muted)]"
                 >
                   Longitude
                 </label>
@@ -253,7 +262,7 @@ function ReportPage() {
                     setForm((prev) => ({ ...prev, longitude: e.target.value }))
                   }
                   placeholder="18.4241"
-                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none transition-colors duration-150 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                 />
               </div>
             </div>
@@ -261,7 +270,7 @@ function ReportPage() {
             <div className="mt-3">
               <label
                 htmlFor="neighborhood"
-                className="mb-1 block text-xs text-[var(--color-text-muted)]"
+                className="mb-1 block text-xs font-medium text-[var(--color-text-muted)]"
               >
                 Neighborhood (auto-filled from location)
               </label>
@@ -276,7 +285,7 @@ function ReportPage() {
                   }))
                 }
                 placeholder="e.g. Downtown, Riverside"
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
+                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none transition-colors duration-150 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
               />
             </div>
           </div>
@@ -299,7 +308,7 @@ function ReportPage() {
               setForm((prev) => ({ ...prev, reporterName: e.target.value }))
             }
             placeholder="Anonymous"
-            className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
+            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-sm outline-none transition-colors duration-150 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
           />
         </div>
 
@@ -307,7 +316,7 @@ function ReportPage() {
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="w-full rounded-md bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] transition-colors hover:bg-[var(--color-primary-hover)] disabled:opacity-50"
+          className="w-full rounded-xl bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md disabled:opacity-50"
         >
           {mutation.isPending ? "Submitting..." : "Submit Report"}
         </button>

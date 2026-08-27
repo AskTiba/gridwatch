@@ -12,7 +12,7 @@ function TestableHomePage() {
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Municipal Utility Monitor
+          GridWatch
         </h1>
         <p className="mt-4 text-lg text-[var(--color-text-muted)]">
           Real-time community dashboard for power outages, water issues, and
@@ -79,7 +79,7 @@ describe("HomePage", () => {
     render(<TestableHomePage />);
     expect(
       screen.getByRole("heading", { level: 1 })
-    ).toHaveTextContent("Municipal Utility Monitor");
+    ).toHaveTextContent("GridWatch");
   });
 
   it("renders the three status cards", () => {
