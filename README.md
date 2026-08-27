@@ -52,48 +52,29 @@ GridWatch enables citizens to report infrastructure issues (power cuts, water le
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLIENT (Browser)                         │
-│             React 19 + TanStack Router + Leaflet                │
-│                                                                 │
-│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────┐   │
-│  │   Zones   │ │ Incidents │ │  Report   │ │      Map      │   │
-│  │    Page   │ │    Feed   │ │    Form   │ │     View      │   │
-│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └──────┬────────┘   │
-│        └──────────────┼─────────────┼──────────────┘            │
-│                       │             │                            │
-│                TanStack Query    TanStack Form                   │
-└───────────────────────┼─────────────┼───────────────────────────┘
-                        │             │
-                        ▼             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     TanStack Start Server                        │
-│                       (Server Functions)                         │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  getZones          getZoneById        getZoneOutages     │   │
-│  │  getIncidents      createIncidentReport   upvoteIncident │   │
-│  │  getVapidPublicKey subscribeToPush    unsubscribeFromPush │   │
-│  │  sendZoneNotification                                     │   │
-│  └─────────────────────────┬────────────────────────────────┘   │
-│                            │                                    │
-│                            └──────────► Push Notification       │
-└────────────────────────────┼────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      PostgreSQL + PostGIS                        │
-│                                                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │    zones     │  │   outages    │  │  notification_       │  │
-│  │              │  │              │  │    subscriptions     │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
-│                                                                 │
-│  ┌──────────────────────┐  ┌──────────────────────┐            │
-│  │   incident_reports   │  │      upvotes         │            │
-│  │                      │  │                      │            │
-│  └──────────────────────┘  └──────────────────────┘            │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                     CLIENT (Browser)                         │
+│                                                              │
+│  Zones Page    Incidents Feed    Report Form    Map View     │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│                   TANSTACK START SERVER                      │
+│                                                              │
+│  getZones            getZoneById          getZoneOutages     │
+│  getIncidents        createIncidentReport upvoteIncident     │
+│  getVapidPublicKey   subscribeToPush      sendNotification   │
+│  unsubscribeFromPush                                         │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    PostgreSQL + PostGIS                      │
+│                                                              │
+│  zones    outages    incident_reports    upvotes             │
+│                                          notification_subs   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Getting Started
