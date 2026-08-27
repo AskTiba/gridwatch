@@ -52,42 +52,48 @@ GridWatch enables citizens to report infrastructure issues (power cuts, water le
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      CLIENT (Browser)                    │
-│  React 19 + TanStack Router + TanStack Query + Leaflet  │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
-│  │  Zones   │ │ Incidents│ │  Report  │ │    Map    │  │
-│  │  Page    │ │  Feed    │ │   Form   │ │   View    │  │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬─────┘  │
-│       └─────────────┼───────────┼──────────────┘        │
-│                     │           │                        │
-│              TanStack Query   TanStack Form              │
-└─────────────────────┼───────────┼───────────────────────┘
-                      │           │
-              ┌───────▼───────────▼───────┐
-              │    TanStack Start Server   │
-              │    (Server Functions)      │
-              │  ┌─────────────────────┐   │
-              │  │  getZones           │   │
-              │  │  getIncidents       │   │
-              │  │  createIncident     │───┼──► Push Notification
-              │  │  upvoteIncident     │   │
-              │  │  subscribeToPush    │   │
-              │  └─────────┬───────────┘   │
-              └────────────┼───────────────┘
-                           │
-              ┌────────────▼───────────────┐
-              │  PostgreSQL + PostGIS       │
-              │  ┌───────┐ ┌───────────┐   │
-              │  │ zones │ │ incidents │   │
-              │  └───────┘ └───────────┘   │
-              │  ┌────────┐ ┌──────────┐   │
-              │  │outages │ │upvotes   │   │
-              │  └────────┘ └──────────┘   │
-              │  ┌──────────────────────┐   │
-              │  │notification_subs     │   │
-              │  └──────────────────────┘   │
-              └────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLIENT (Browser)                         │
+│             React 19 + TanStack Router + Leaflet                │
+│                                                                 │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────┐   │
+│  │   Zones   │ │ Incidents │ │  Report   │ │      Map      │   │
+│  │    Page   │ │    Feed   │ │    Form   │ │     View      │   │
+│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └──────┬────────┘   │
+│        └──────────────┼─────────────┼──────────────┘            │
+│                       │             │                            │
+│                TanStack Query    TanStack Form                   │
+└───────────────────────┼─────────────┼───────────────────────────┘
+                        │             │
+                        ▼             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     TanStack Start Server                        │
+│                       (Server Functions)                         │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  getZones          getZoneById        getZoneOutages     │   │
+│  │  getIncidents      createIncidentReport   upvoteIncident │   │
+│  │  getVapidPublicKey subscribeToPush    unsubscribeFromPush │   │
+│  │  sendZoneNotification                                     │   │
+│  └─────────────────────────┬────────────────────────────────┘   │
+│                            │                                    │
+│                            └──────────► Push Notification       │
+└────────────────────────────┼────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      PostgreSQL + PostGIS                        │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │    zones     │  │   outages    │  │  notification_       │  │
+│  │              │  │              │  │    subscriptions     │  │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
+│                                                                 │
+│  ┌──────────────────────┐  ┌──────────────────────┐            │
+│  │   incident_reports   │  │      upvotes         │            │
+│  │                      │  │                      │            │
+│  └──────────────────────┘  └──────────────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Getting Started
@@ -155,13 +161,57 @@ npx web-push generate-vapid-keys
 ## Database Schema
 
 ```
-zones ──────────┐
-                │
-outages ────────┤
-                │
-incident_reports ├─── upvotes
-                │
-notification_subscriptions
+┌────────────────────┐       ┌────────────────────┐
+│       zones        │       │      outages       │
+├────────────────────┤       ├────────────────────┤
+│ id          (UUID) │◄──┐   │ id          (UUID) │
+│ name        (TEXT) │   │   │ zone_id     (UUID) │──┐
+│ postal_code (TEXT) │   ├───│ type        (TEXT) │  │
+│ neighborhood(TEXT) │   │   │ status      (TEXT) │  │
+│ municipality(TEXT) │   │   │ scheduled_start    │  │
+│ geom_wkt    (TEXT) │   │   │ scheduled_end      │  │
+│ created_at  (TS)   │   │   │ reason      (TEXT) │  │
+└────────────────────┘   │   │ source      (TEXT) │  │
+                         │   └────────────────────┘  │
+                         │                           │
+                         │   ┌────────────────────┐  │
+                         │   │  incident_reports  │  │
+                         │   ├────────────────────┤  │
+                         │   │ id          (UUID) │◄─┘
+                         ├───│ zone_id     (UUID) │
+                         │   │ type        (TEXT) │
+                         │   │ description (TEXT) │
+                         │   │ latitude    (TEXT) │
+                         │   │ longitude   (TEXT) │
+                         │   │ status      (TEXT) │
+                         │   │ upvotes     (INT)  │
+                         │   │ created_at  (TS)   │
+                         │   └─────────┬──────────┘
+                         │             │
+                         │             │ 1:N
+                         │             ▼
+                         │   ┌────────────────────┐
+                         │   │     upvotes        │
+                         │   ├────────────────────┤
+                         │   │ id          (UUID) │
+                         │   │ incident_id (UUID) │──┐
+                         │   │ fingerprint (TEXT) │  │ FK → incident_reports
+                         │   │ created_at  (TS)   │  │
+                         │   └────────────────────┘  │
+                         │                           │
+                         │   ┌────────────────────┐  │
+                         │   │ notification_      │  │
+                         │   │   subscriptions    │  │
+                         │   ├────────────────────┤  │
+                         │   │ id          (UUID) │  │
+                         └───│ zone_id     (UUID) │──┘ FK → zones
+                             │ endpoint    (TEXT) │
+                             │ p256dh      (TEXT) │
+                             │ auth        (TEXT) │
+                             │ types       (JSONB)│
+                             │ active      (BOOL) │
+                             │ created_at  (TS)   │
+                             └────────────────────┘
 ```
 
 - **zones** — Geographic zones with PostGIS geometry
