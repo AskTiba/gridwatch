@@ -1,8 +1,46 @@
 import { createServerFn } from "@tanstack/react-start";
 import { db } from "~/db";
-import { incidentReports, upvotes } from "~/db/schema";
-import { eq, and, desc, count as drizzleCount } from "drizzle-orm";
+import { incidentReports, upvotes, zones } from "~/db/schema";
+import { eq, and, desc, ilike, count as drizzleCount } from "drizzle-orm";
 import { sendZoneNotification } from "./notifications";
+import { reverseGeocode } from "~/lib/geocoding";
+
+async function findOrCreateZone(
+  lat: number,
+  lng: number,
+  neighborhood?: string
+): Promise<string> {
+  // Reverse geocode to get area name
+  const geo = await reverseGeocode({ data: { lat, lng } });
+
+  const areaName = geo.area || neighborhood || `Area near ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+  const municipality = geo.municipality || null;
+
+  // Check if a zone with this name already exists
+  const existing = await db
+    .select()
+    .from(zones)
+    .where(ilike(zones.name, areaName))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return existing[0].id;
+  }
+
+  // Create new zone
+  const geomWkt = `POINT(${lng} ${lat})`;
+  const result = await db
+    .insert(zones)
+    .values({
+      name: areaName,
+      neighborhood: geo.neighborhood || neighborhood || null,
+      municipality,
+      geomWkt,
+    })
+    .returning({ id: zones.id });
+
+  return result[0].id;
+}
 
 export const getIncidents = createServerFn({ method: "GET" })
   .validator((input: { zoneId?: string; type?: string; limit?: number; offset?: number }) => input)
@@ -40,6 +78,20 @@ export const createIncidentReport = createServerFn({ method: "POST" })
     }) => input
   )
   .handler(async ({ data }) => {
+    // Auto-create zone from GPS if no zoneId provided
+    let zoneId = data.zoneId;
+    if (!zoneId && data.latitude && data.longitude) {
+      try {
+        zoneId = await findOrCreateZone(
+          parseFloat(data.latitude),
+          parseFloat(data.longitude),
+          data.neighborhood
+        );
+      } catch {
+        // Geocoding failed — report without a zone
+      }
+    }
+
     const result = await db
       .insert(incidentReports)
       .values({
@@ -48,7 +100,7 @@ export const createIncidentReport = createServerFn({ method: "POST" })
         latitude: data.latitude,
         longitude: data.longitude,
         neighborhood: data.neighborhood,
-        zoneId: data.zoneId,
+        zoneId,
         reporterName: data.reporterName,
         photos: data.photos,
         status: "open",

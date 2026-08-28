@@ -1,36 +1,86 @@
 import { createServerFn } from "@tanstack/react-start";
 import { db } from "~/db";
-import { zones, outages } from "~/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { zones, outages, incidentReports } from "~/db/schema";
+import { eq, and, desc, ilike, or, ne, sql } from "drizzle-orm";
 
 export const getZones = createServerFn({ method: "GET" })
-  .validator((input: { search?: string; postalCode?: string; neighborhood?: string }) => input)
+  .validator((input: { search?: string }) => input)
   .handler(async ({ data }) => {
-    const { search, postalCode, neighborhood } = data;
+    const { search } = data;
 
-    const conditions = [];
-    if (postalCode) conditions.push(eq(zones.postalCode, postalCode));
-    if (neighborhood) conditions.push(eq(zones.neighborhood, neighborhood));
-
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const results = await db
-      .select()
-      .from(zones)
-      .where(where)
-      .orderBy(zones.name);
-
-    // If search is provided, do simple text match
     if (search) {
-      return results.filter(
-        (z) =>
-          z.name.toLowerCase().includes(search.toLowerCase()) ||
-          z.neighborhood?.toLowerCase().includes(search.toLowerCase()) ||
-          z.postalCode?.includes(search)
-      );
+      const pattern = `%${search}%`;
+      return db
+        .select()
+        .from(zones)
+        .where(
+          or(
+            ilike(zones.name, pattern),
+            ilike(zones.neighborhood, pattern),
+            ilike(zones.municipality, pattern),
+            ilike(zones.postalCode, pattern)
+          )
+        )
+        .orderBy(zones.name);
     }
 
-    return results;
+    return db.select().from(zones).orderBy(zones.name);
+  });
+
+export const getZonesWithStats = createServerFn({ method: "GET" })
+  .validator((input: { search?: string }) => input)
+  .handler(async ({ data }) => {
+    const { search } = data;
+
+    const zonesList = search
+      ? await db
+          .select()
+          .from(zones)
+          .where(
+            or(
+              ilike(zones.name, `%${search}%`),
+              ilike(zones.neighborhood, `%${search}%`),
+              ilike(zones.municipality, `%${search}%`)
+            )
+          )
+          .orderBy(zones.name)
+      : await db.select().from(zones).orderBy(zones.name);
+
+    const zonesWithStats = await Promise.all(
+      zonesList.map(async (zone) => {
+        const [outageResult, incidentResult] = await Promise.all([
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(outages)
+            .where(
+              and(
+                eq(outages.zoneId, zone.id),
+                or(
+                  eq(outages.status, "active"),
+                  eq(outages.status, "scheduled")
+                )
+              )
+            ),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(incidentReports)
+            .where(
+              and(
+                eq(incidentReports.zoneId, zone.id),
+                ne(incidentReports.status, "resolved")
+              )
+            ),
+        ]);
+
+        return {
+          ...zone,
+          activeOutages: outageResult[0]?.count ?? 0,
+          openIncidents: incidentResult[0]?.count ?? 0,
+        };
+      })
+    );
+
+    return zonesWithStats;
   });
 
 export const getZoneById = createServerFn({ method: "GET" })

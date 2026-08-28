@@ -21,7 +21,7 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["src/routeTree.gen.ts", "node_modules", "dist"],
+    ignores: ["src/routeTree.gen.ts", "node_modules", "dist", ".output"],
   },
   {
     languageOptions: {

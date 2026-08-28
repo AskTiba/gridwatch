@@ -2,16 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { db } from "~/db";
 import { notificationSubscriptions } from "~/db/schema";
 import { eq, and } from "drizzle-orm";
-import webPush from "web-push";
-
-// Configure web-push with VAPID keys
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webPush.setVapidDetails(
-    process.env.VAPID_EMAIL || "mailto:admin@example.com",
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
 
 export const getVapidPublicKey = createServerFn({ method: "GET" }).handler(
   () => {
@@ -85,6 +75,16 @@ export const sendZoneNotification = createServerFn({ method: "POST" })
     }) => input
   )
   .handler(async ({ data }) => {
+    const webPush = (await import("web-push")).default;
+
+    if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+      webPush.setVapidDetails(
+        process.env.VAPID_EMAIL || "mailto:admin@example.com",
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+      );
+    }
+
     const subs = await db
       .select()
       .from(notificationSubscriptions)

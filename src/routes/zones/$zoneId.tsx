@@ -1,5 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getZoneById, getZoneOutages } from "~/functions/zones";
+import { getIncidents } from "~/functions/incidents";
 import { MapView } from "~/components/MapView";
 import { usePushSubscription } from "~/hooks/usePushSubscription";
 
@@ -12,15 +15,15 @@ function ZoneNotFound() {
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
       <span className="text-6xl">📍</span>
-      <h2 className="mt-4 text-2xl font-bold">Zone Not Found</h2>
+      <h2 className="mt-4 text-2xl font-bold">Area Not Found</h2>
       <p className="mt-2 text-[var(--color-text-secondary)]">
-        The zone you're looking for doesn't exist or has been removed.
+        The area you're looking for doesn't exist or has been removed.
       </p>
       <Link
         to="/zones"
         className="mt-6 inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
       >
-        Browse All Zones
+        Browse All Areas
       </Link>
     </div>
   );
@@ -31,6 +34,24 @@ function ZoneDetailPage() {
   const [activeTab, setActiveTab] = useState<"schedule" | "incidents" | "map">(
     "schedule",
   );
+
+  const { data: zone, isLoading: zoneLoading, isError: zoneError } = useQuery({
+    queryKey: ["zone", zoneId],
+    queryFn: () => getZoneById({ data: { id: zoneId } }),
+  });
+
+  const { data: outages = [] } = useQuery({
+    queryKey: ["zoneOutages", zoneId],
+    queryFn: () => getZoneOutages({ data: { zoneId } }),
+    enabled: !!zone,
+  });
+
+  const { data: incidents = [] } = useQuery({
+    queryKey: ["zoneIncidents", zoneId],
+    queryFn: () => getIncidents({ data: { zoneId } }),
+    enabled: !!zone,
+  });
+
   const push = usePushSubscription(zoneId);
 
   const handleSubscribe = async () => {
@@ -40,6 +61,24 @@ function ZoneDetailPage() {
     }
     push.subscribe();
   };
+
+  if (zoneLoading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-center gap-2.5 py-16 text-[var(--color-text-muted)]">
+          <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span className="text-sm">Loading area...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (zoneError || !zone) {
+    return <ZoneNotFound />;
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -51,12 +90,13 @@ function ZoneDetailPage() {
                 to="/zones"
                 className="text-sm text-[var(--color-text-muted)] transition-colors duration-150 hover:text-[var(--color-primary)]"
               >
-                ← Zones
+                ← Areas
               </Link>
             </div>
-            <h1 className="mt-2 text-3xl font-bold">Zone {zoneId}</h1>
+            <h1 className="mt-2 text-3xl font-bold">{zone.name}</h1>
             <p className="mt-1.5 text-[var(--color-text-secondary)]">
-              Grid schedule, active incidents, and area map.
+              {zone.neighborhood ?? "Monitoring area"}
+              {zone.postalCode && ` · ${zone.postalCode}`}
             </p>
           </div>
           {push.isSupported && (
@@ -84,7 +124,7 @@ function ZoneDetailPage() {
         {(
           [
             { key: "schedule", label: "Grid Schedule" },
-            { key: "incidents", label: "Incidents" },
+            { key: "incidents", label: `Incidents (${incidents.length})` },
             { key: "map", label: "Map View" },
           ] as const
         ).map((tab) => (
@@ -102,45 +142,33 @@ function ZoneDetailPage() {
         ))}
       </div>
 
-      {activeTab === "schedule" && <GridSchedule />}
-      {activeTab === "incidents" && <ZoneIncidents />}
-      {activeTab === "map" && <ZoneMap zoneId={zoneId} />}
+      {activeTab === "schedule" && <GridSchedule outages={outages} />}
+      {activeTab === "incidents" && (
+        <ZoneIncidents incidents={incidents} zoneId={zoneId} />
+      )}
+      {activeTab === "map" && (
+        <ZoneMap incidents={incidents} zoneName={zone.name} />
+      )}
     </div>
   );
 }
 
-function GridSchedule() {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-
-  const scheduledOutages = [
-    {
-      day: 2,
-      startHour: 8,
-      endHour: 14,
-      type: "power" as const,
-      reason: "Transformer maintenance — Ward 12",
-    },
-    {
-      day: 4,
-      startHour: 10,
-      endHour: 16,
-      type: "water" as const,
-      reason: "Water main replacement — Oak Street",
-    },
-    {
-      day: 6,
-      startHour: 6,
-      endHour: 10,
-      type: "power" as const,
-      reason: "Scheduled grid testing",
-    },
-  ];
+function GridSchedule({ outages }: { outages: Array<{
+  id: string;
+  type: string;
+  status: string;
+  scheduledStart: Date | null;
+  scheduledEnd: Date | null;
+  reason: string | null;
+}> }) {
+  const activeOutages = outages.filter(
+    (o) => o.status === "scheduled" || o.status === "active"
+  );
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Weekly Grid Schedule</h2>
+        <h2 className="text-lg font-semibold">Grid Schedule</h2>
         <div className="flex gap-4 text-sm">
           <span className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-sm bg-[var(--color-primary)]" />
@@ -153,95 +181,84 @@ function GridSchedule() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] shadow-sm">
-        <table className="w-full min-w-[800px]">
-          <thead>
-            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-              <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--color-text-muted)]">
-                Hour
-              </th>
-              {days.map((day) => (
-                <th
-                  key={day}
-                  className="px-3 py-2.5 text-center text-xs font-medium text-[var(--color-text-muted)]"
-                >
-                  {day}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {hours.map((hour) => (
-              <tr
-                key={hour}
-                className="border-b border-[var(--color-border)] last:border-b-0"
-              >
-                <td className="whitespace-nowrap px-3 py-1.5 text-xs text-[var(--color-text-muted)]">
-                  {String(hour).padStart(2, "0")}:00
-                </td>
-                {days.map((_, dayIndex) => {
-                  const outage = scheduledOutages.find(
-                    (o) =>
-                      o.day === dayIndex &&
-                      hour >= o.startHour &&
-                      hour < o.endHour,
-                  );
-                  return (
-                    <td
-                      key={dayIndex}
-                      className={`px-1 py-1 ${
-                        outage
-                          ? outage.type === "power"
-                            ? "bg-[var(--color-primary-subtle)]"
-                            : "bg-[var(--color-warning-subtle)]"
-                          : ""
-                      }`}
-                    >
-                      {outage && hour === outage.startHour && (
-                        <div
-                          className={`cursor-pointer rounded px-1 py-0.5 text-xs text-white ${
-                            outage.type === "power"
-                              ? "bg-[var(--color-primary)]"
-                              : "bg-[var(--color-warning)]"
-                          }`}
-                          title={outage.reason}
-                        >
-                          {outage.type === "power" ? "⚡" : "💧"}{" "}
-                          {outage.reason.slice(0, 20)}...
-                        </div>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {activeOutages.length === 0 ? (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-sm">
+          <span className="text-3xl">✅</span>
+          <p className="mt-3 text-sm font-medium">No scheduled outages</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            All services are currently running as normal.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {activeOutages.map((outage) => (
+            <div
+              key={outage.id}
+              className="flex items-start gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm"
+            >
+              <span className="mt-0.5 text-2xl">
+                {outage.type === "power" ? "⚡" : "💧"}
+              </span>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      outage.status === "active"
+                        ? "bg-[var(--color-danger)]"
+                        : "bg-[var(--color-warning)]"
+                    }`}
+                  />
+                  <span className="text-xs font-medium capitalize text-[var(--color-text-muted)]">
+                    {outage.status}
+                  </span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    · {outage.type}
+                  </span>
+                </div>
+                {outage.reason && (
+                  <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
+                    {outage.reason}
+                  </p>
+                )}
+                {outage.scheduledStart && outage.scheduledEnd && (
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                    {new Date(outage.scheduledStart).toLocaleDateString()}{" "}
+                    {new Date(outage.scheduledStart).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}{" "}
+                    –{" "}
+                    {new Date(outage.scheduledEnd).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ZoneIncidents() {
-  const incidents = [
-    {
-      id: "1",
-      type: "power_cut",
-      description: "Entire block without power since 3am",
-      status: "confirmed",
-      upvotes: 12,
-      time: "2 hours ago",
-    },
-    {
-      id: "2",
-      type: "water_leak",
-      description: "Major water leak on corner of Main and 5th",
-      status: "open",
-      upvotes: 5,
-      time: "45 minutes ago",
-    },
-  ];
-
+function ZoneIncidents({
+  incidents,
+  zoneId,
+}: {
+  incidents: Array<{
+    id: string;
+    type: string;
+    description: string;
+    status: string;
+    upvotes: number;
+    createdAt: Date;
+    latitude: string;
+    longitude: string;
+  }>;
+  zoneId: string;
+}) {
   const typeIcons: Record<string, string> = {
     power_cut: "⚡",
     water_leak: "💧",
@@ -263,87 +280,103 @@ function ZoneIncidents() {
         <h2 className="text-lg font-semibold">Reported Incidents</h2>
         <Link
           to="/report"
+          search={{ zoneId }}
           className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] shadow-sm transition-all duration-150 hover:bg-[var(--color-primary-hover)] hover:shadow-md"
         >
           + Report Issue
         </Link>
       </div>
 
-      <div className="space-y-3">
-        {incidents.map((incident) => (
-          <div
-            key={incident.id}
-            className="flex items-start gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm transition-all duration-200 hover:shadow-md"
-          >
-            <span className="mt-0.5 text-2xl">
-              {typeIcons[incident.type] ?? "📋"}
-            </span>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`h-2 w-2 rounded-full ${statusColors[incident.status]}`}
-                />
-                <span className="text-xs font-medium capitalize text-[var(--color-text-muted)]">
-                  {incident.status.replace("_", " ")}
-                </span>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  · {incident.time}
-                </span>
+      {incidents.length === 0 ? (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-sm">
+          <span className="text-3xl">📋</span>
+          <p className="mt-3 text-sm font-medium">No incidents reported</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Be the first to report an issue in this area.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {incidents.map((incident) => (
+            <div
+              key={incident.id}
+              className="flex items-start gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm transition-all duration-200 hover:shadow-md"
+            >
+              <span className="mt-0.5 text-2xl">
+                {typeIcons[incident.type] ?? "📋"}
+              </span>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${statusColors[incident.status]}`}
+                  />
+                  <span className="text-xs font-medium capitalize text-[var(--color-text-muted)]">
+                    {incident.status.replace("_", " ")}
+                  </span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    · {new Date(incident.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
+                  {incident.description}
+                </p>
               </div>
-              <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
-                {incident.description}
-              </p>
+              <div className="flex shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-muted)]">
+                <span>▲</span>
+                <span>{incident.upvotes}</span>
+              </div>
             </div>
-            <button className="flex shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-muted)] transition-all duration-150 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">
-              <span>▲</span>
-              <span>{incident.upvotes}</span>
-            </button>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ZoneMap(_props: { zoneId: string }) {
-  const mockClusters = [
-    {
-      id: "1",
-      lat: -33.92,
-      lng: 18.42,
-      count: 3,
-      type: "power_cut" as const,
-    },
-    {
-      id: "2",
-      lat: -33.93,
-      lng: 18.43,
-      count: 1,
-      type: "water_leak" as const,
-    },
-    {
-      id: "3",
-      lat: -33.91,
-      lng: 18.41,
-      count: 2,
-      type: "pothole" as const,
-    },
-  ];
+function ZoneMap({
+  incidents,
+  zoneName,
+}: {
+  incidents: Array<{
+    id: string;
+    latitude: string;
+    longitude: string;
+    type: string;
+  }>;
+  zoneName: string;
+}) {
+  const clusters = incidents.map((i) => ({
+    id: i.id,
+    lat: parseFloat(i.latitude),
+    lng: parseFloat(i.longitude),
+    count: 1,
+    type: i.type as "power_cut" | "water_leak" | "pothole" | "street_light" | "other",
+  }));
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Incident Map</h2>
+        <h2 className="text-lg font-semibold">Incident Map — {zoneName}</h2>
         <span className="text-sm text-[var(--color-text-muted)]">
-          {mockClusters.length} cluster{mockClusters.length !== 1 ? "s" : ""}
+          {clusters.length} incident{clusters.length !== 1 ? "s" : ""}
         </span>
       </div>
-      <MapView
-        incidents={mockClusters}
-        center={[-33.9249, 18.4241]}
-        zoom={13}
-        className="h-[500px] rounded-xl shadow-sm"
-      />
+      {clusters.length === 0 ? (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-sm">
+          <span className="text-3xl">🗺️</span>
+          <p className="mt-3 text-sm font-medium">No incidents to display</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Reported incidents will appear on the map.
+          </p>
+        </div>
+      ) : (
+        <MapView
+          incidents={clusters}
+          center={[0.3476, 32.5825]}
+          zoom={13}
+          className="h-[500px] rounded-xl shadow-sm"
+        />
+      )}
     </div>
   );
 }

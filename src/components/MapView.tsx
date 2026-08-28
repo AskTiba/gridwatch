@@ -18,7 +18,7 @@ interface MapViewProps {
 
 export function MapView({
   incidents,
-  center = [-33.9249, 18.4241],
+  center = [0.3476, 32.5825],
   zoom = 12,
   className,
 }: MapViewProps) {

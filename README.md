@@ -131,9 +131,9 @@ pnpm exec dotenv -e .env.local -- pnpm exec drizzle-kit push
 # Seed test zones (optional)
 docker exec gridwatch-pg psql -U postgres -d gridwatch -c "
 INSERT INTO zones (id, name, neighborhood, municipality, geom_wkt) VALUES
-('zone-1', 'Zone 1 - Downtown', 'Downtown Central', 'Springfield', 'POINT(-74.0060 40.7128)'),
-('zone-2', 'Zone 2 - Riverside', 'Riverside District', 'Springfield', 'POINT(-74.0030 40.7148)'),
-('zone-3', 'Zone 3 - Hillcrest', 'Hillcrest Heights', 'Springfield', 'POINT(-74.0090 40.7108)');
+('zone-1', 'Kisementi', 'Kisementi Parish', 'Kampala', 'POINT(32.5800 0.3136)'),
+('zone-2', 'Nakawa', 'Nakawa Zone', 'Kampala', 'POINT(32.5950 0.3320)'),
+('zone-3', 'Kikuubo', 'Kikuubo Trading Center', 'Kampala', 'POINT(32.5680 0.3100)');
 "
 
 # Start the dev server
