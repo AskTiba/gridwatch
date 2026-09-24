@@ -32,8 +32,8 @@
 
 | Story/Task | Current Unit | Exact Next Action | Files |
 |---|---|---|---|
-| DB-backed integration harness | Unit 2 done (commit pending) | Push branch → watch CI run integration test against postgres service | `src/functions/upvotes.integration.test.ts`, `.github/workflows/ci.yml` |
-| Unit 3: upvote atomicity | Transaction around check+insert+increment (app-level, no schema push) | Wrap core in `db.transaction`, extend integration test to assert rollback | `src/functions/incidents.ts` |
+| DB-backed integration harness | Unit 2 done (committed c7eff19) | Push branch → watch CI run integration test against postgres service | `src/functions/upvotes.integration.test.ts`, `.github/workflows/ci.yml` |
+| Upvote atomicity | Unit 3 done (commit pending) | Commit gate → surface | `src/functions/incidents.ts` |
 | Unit 4: UNIQUE constraint | Needs live `db:push` → explicit decision + pre-tag | Present options to developer before acting | `src/db/schema.ts` |
 | Skill 6.0 bootstrap | CI scaffolding (committed 1a84c67) | Push branch | `.github/workflows/ci.yml` |
 

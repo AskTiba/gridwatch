@@ -16,28 +16,30 @@ export async function upvoteIncidentCore(
   incidentId: string,
   fingerprint: string
 ): Promise<UpvoteResult> {
-  const existing = await client
-    .select()
-    .from(upvotes)
-    .where(
-      and(
-        eq(upvotes.incidentId, incidentId),
-        eq(upvotes.fingerprint, fingerprint)
+  return client.transaction(async (tx) => {
+    const existing = await tx
+      .select()
+      .from(upvotes)
+      .where(
+        and(
+          eq(upvotes.incidentId, incidentId),
+          eq(upvotes.fingerprint, fingerprint)
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  if (existing.length > 0) {
-    return { success: false, reason: "already_upvoted" };
-  }
+    if (existing.length > 0) {
+      return { success: false, reason: "already_upvoted" };
+    }
 
-  await client.insert(upvotes).values({ incidentId, fingerprint });
-  await client
-    .update(incidentReports)
-    .set({ upvotes: upvoteCountSql })
-    .where(eq(incidentReports.id, incidentId));
+    await tx.insert(upvotes).values({ incidentId, fingerprint });
+    await tx
+      .update(incidentReports)
+      .set({ upvotes: upvoteCountSql })
+      .where(eq(incidentReports.id, incidentId));
 
-  return { success: true };
+    return { success: true };
+  });
 }
 
 async function findOrCreateZone(

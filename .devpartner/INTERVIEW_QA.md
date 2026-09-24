@@ -78,6 +78,26 @@
 
 ---
 
+### STORY-UPVOTE-FIX-3 — Transactional atomicity for the upvote path — 2026-09-24
+
+**Q:** "Your upvote path is check-then-insert-then-increment. What happens if the increment fails, and how do you make that safe?"
+
+**Direct answer:** Without a transaction, a failed count UPDATE leaves an orphaned Upvotes row (the INSERT already committed). I wrapped the dedup check + vote insert + count increment in a single `client.transaction`, so any failure rolls all three back.
+
+**Concept:** A transaction is the storage engine's atomicity primitive, not an app-level nicety. By passing the DB into the core (`upvoteIncidentCore(client, ...)`), the transaction is exercised the same way in tests as in production — the harness test arms a `BEFORE UPDATE` trigger on `incident_reports` that `RAISE EXCEPTION`s, asserts the call rejects, then asserts no Upvotes row remains and the count is still 0. Drop the trigger in a `finally` so failed runs don't leak DDL into the next test.
+
+**Why / tradeoffs:** The untested failure mode (orphan rows + phantom increments) was exactly the class that shipped ERR-003. Cost paid now: the transaction guarantees a slightly longer-read lock window (the read-for-update gap is only closed by the Unit 4 constraint). The alternative — a `UNIQUE(incident_id, fingerprint)` constraint — is the authoritative backstop we'll add next, but it still won't make the count increment atomic by itself.
+
+**In this project:** `src/functions/incidents.ts` (`upvoteIncidentCore` now `client.transaction(...)`), `src/functions/upvotes.integration.test.ts` (2nd `it`: forced-update-failure trigger, `rejects.toThrow()`, orphan-row length 0, count 0).
+
+**Interviewer's intent:** Tests whether the candidate distinguishes "works when the happy path is hit" from "still consistent when a step fails mid-sequence" — and whether they can force the failure deterministically in a test rather than relying on a mock that never throws.
+
+**Follow-ups:**
+- Q: Why isn't `REPEATABLE READ` or a lock used? → A: Postgres `BEGIN` (READ COMMITTED) + the row UPDATE's implicit row lock already makes the count bump safe against concurrent writers; `SERIALIZABLE` wouldn't buy correctness here but costs retry complexity.
+- Q: What closes the check-then-insert race? → A: Unit 4 — a `UNIQUE(incident_id, fingerprint)` index makes the INSERT itself the de-dupe boundary; a duplicate violates the constraint and aborts the transaction. Announced for explicit approval because it needs a live `db:push`.
+
+---
+
 ## §D1. System Design & Architecture
 
 ### Draw this system end-to-end
