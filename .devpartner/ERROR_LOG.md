@@ -43,9 +43,20 @@
 | **Context** | First pushes to `origin/main` after Units 2–3 — validating `.github/workflows/ci.yml` (postgres:16 service) |
 | **Symptom** | Job failed in ~12s during `Initialize containers`: `docker create ... postgres:16-alpine` → `Usage: docker create [OPTIONS] IMAGE [COMMAND] [ARG...]` then `##[error]Exit code 125` |
 | **Root cause** | The multi-word `--health-cmd pg_isready -U postgres` in the service `options:` string is split by the runner's arg parsing into `--health-cmd pg_isready` + `-U postgres`; docker then reads `-U` as an unknown docker flag and aborts with usage + exit 125.\n\nⓘ *First diagnosis (blamed host `-p 5432:5432` publish) was wrong — both runs failed on the same health-cmd split; the port publish was never reached.* The alias-based `postgres:5432` URL change is still correct and kept. |
-| **Resolution** | Dropped the `-U postgres` tokens → single-word health command `--health-cmd pg_isready` (default user/DB in the container matches POSTGRES_USER=postgres). Service reachable at its network alias `postgres:5432`; no host port publish. |
-| **Prevention** | Keep service `--health-cmd` single-word; if a multi-word probe is needed, use a quoted image `command` wrapper instead of `options`; validate service init BEFORE wiring app steps |
+| **Resolution** | Dropped the `-U postgres` tokens → single-word health command `--health-cmd pg_isready` (default user/DB in the container matches POSTGRES_USER=postgres). Connectivity stays host-port based: steps run on the runner **host**, so the service must publish `5432:5432` and the URL targets `localhost:5432` — the network-alias form only works when a job `container:` shares the service network (ERR-006 branch, see resolution below) |
+| **Prevention** | Keep service `--health-cmd` single-word; choose alias-vs-localhost connectivity based on whether the job runs in a `container:` (alias) or on the host (published port + localhost) |
 | **Related** | `ci.yml` `services:` block; the erroneous first pass is superseded by this entry |
+
+### ERR-006 — 2026-09-24 — pnpm 11 install fails in CI: ERR_PNPM_IGNORED_BUILDS
+
+| Field | Content |
+|---|---|
+| **Context** | First CI runs after enabling the pipeline — `pnpm install --frozen-lockfile` on the runner |
+| **Symptom** | `[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: esbuild@0.18.20, esbuild@0.25.12, esbuild@0.28.2` then exit 1. Locally the identical install succeeds. |
+| **Root cause** | pnpm **v11 removed `onlyBuiltDependencies`** (and the `pnpm` field in package.json generally) in favor of an `allowBuilds` map in `pnpm-workspace.yaml`; the legacy key is **silently ignored**. Local installs passed the whole time only because the machine's global pnpm config has `dangerouslyAllowAllBuilds: true` — masking the bug in every local run. CI has no such config, so the strict gate fired. |
+| **Resolution** | `pnpm-workspace.yaml` now declares `allowBuilds: { esbuild: true }` (esbuild's postinstall builds its platform binary; it must run or the binary is absent). Verified against a strict install (`--config.dangerouslyAllowAllBuilds=false`) in a scratch project. Local install re-verified. |
+| **Prevention** | CI must be the source of truth (it is — the strict gate caught it); reproduce CI strictness locally with `pnpm install --config.dangerouslyAllowAllBuilds=false`; grep `pnpm config list` for `dangerouslyAllowAllBuilds` when "works here, fails there" |
+| **Related** | ERR-005 (service layer); prior wrong-fix commits `7962b26` (package.json pnpm field — v11 no longer reads it) and `dc231fa` (legacy `onlyBuiltDependencies` key) superseded by the `allowBuilds` map in `9eccc9f` |
 
 ### ERR-003 — 2026-09-24 — Upvote count update emits invalid Postgres SQL
 
