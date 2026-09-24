@@ -1,0 +1,99 @@
+name: "{{PROJECT_NAME}} CI"
+
+on:
+  push:
+    branches: [main, "feature/**", "fix/**", "refactor/**", "chore/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Runtime Setup ──────────────────────────────────────────────
+      # JS/TS projects
+      - name: Setup Node.js
+        if: "{{IS_NODE}}"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "{{NODE_VERSION}}"
+          cache: "{{PACKAGE_MANAGER}}"
+
+      # Python projects
+      - name: Setup Python
+        if: "{{IS_PYTHON}}"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "{{PYTHON_VERSION}}"
+          cache: "{{PYTHON_PACKAGE_MANAGER}}"
+
+      # Go projects
+      - name: Setup Go
+        if: "{{IS_GO}}"
+        uses: actions/setup-go@v5
+        with:
+          go-version: "{{GO_VERSION}}"
+          cache: true
+
+      # Rust projects
+      - name: Setup Rust
+        if: "{{IS_RUST}}"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      # ── Cache ──────────────────────────────────────────────────────
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: "{{CACHE_PATH}}"
+          key: ${{ runner.os }}-{{CACHE_KEY_PREFIX}}-${{ hashFiles('{{LOCKFILE}}') }}
+          restore-keys: |
+            ${{ runner.os }}-{{CACHE_KEY_PREFIX}}-
+
+      # Next.js build cache (JS/TS + Next.js only)
+      - name: Cache Next.js
+        if: "{{IS_NEXTJS}}"
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/*.{js,jsx,ts,tsx,json}') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-
+
+      # ── Install ────────────────────────────────────────────────────
+      - name: Install dependencies
+        run: "{{CI_INSTALL_CMD}}"
+
+      # ── Database / ORM (optional) ──────────────────────────────────
+      - name: Generate ORM client
+        if: "{{HAS_ORM}}"
+        run: "{{ORM_GENERATE_CMD}}"
+
+      # ── Quality Checks (order mirrors local commit gate) ───────────
+      - name: Format check
+        if: "{{HAS_FORMATTER}}"
+        run: "{{FORMAT_CHECK_CMD}}"
+
+      - name: Lint
+        run: "{{LINT_CMD}}"
+
+      - name: Type check
+        if: "{{HAS_TYPECHECK}}"
+        run: "{{TYPECHECK_CMD}}"
+
+      - name: Test
+        run: "{{TEST_CMD}}"
+
+      - name: Build
+        run: "{{BUILD_CMD}}"

@@ -1,0 +1,47 @@
+name: GridWatch CI
+
+on:
+  push:
+    branches: [main, "feature/**", "fix/**", "refactor/**", "chore/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # ── Install (mirrors local commit gate §8.4) ─────────────────
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ── Quality Checks (order mirrors local gate) ───────────────
+      # No formatter configured (no .prettierrc / .biome.json) → format stage skipped.
+      # No ORM generate step: schema is imported directly from src/db/schema.ts
+      # and migrations are pushed via pnpm db:push (no committed migrations dir).
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

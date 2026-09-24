@@ -1,0 +1,28 @@
+image: node:{{NODE_VERSION}}-slim
+
+stages:
+  - quality
+
+variables:
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+
+cache:
+  key:
+    files:
+      - "{{LOCKFILE}}"
+  paths:
+    - "{{CACHE_PATH}}"
+
+quality:
+  stage: quality
+  script:
+    - "{{CI_INSTALL_CMD}}"
+    - "{{ORM_GENERATE_CMD}}"     # Remove if no ORM
+    - "{{FORMAT_CHECK_CMD}}"     # Remove if no formatter
+    - "{{LINT_CMD}}"
+    - "{{TYPECHECK_CMD}}"        # Remove if no type-check
+    - "{{TEST_CMD}}"
+    - "{{BUILD_CMD}}"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
