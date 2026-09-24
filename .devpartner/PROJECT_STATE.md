@@ -32,9 +32,10 @@
 
 | Story/Task | Current Unit | Exact Next Action | Files |
 |---|---|---|---|
-| ERR-003: broken upvote count update | Complete (Unit 1, commit pending) | Verify on a pushed branch / review diff | `src/functions/incidents.ts`, `incidents.test.ts` |
-| Skill 6.0 bootstrap | CI scaffolding (committed 1a84c67) | Push branch → watch CI run | `.github/workflows/ci.yml` |
-| Sprint 5: Deployment & Polish | Upvote fix shipped → DB-backed test harness next | Add integration test for `upvoteIncident` incl. transaction wrapping | `src/functions/incidents.test.ts` |
+| DB-backed integration harness | Unit 2 done (commit pending) | Push branch → watch CI run integration test against postgres service | `src/functions/upvotes.integration.test.ts`, `.github/workflows/ci.yml` |
+| Unit 3: upvote atomicity | Transaction around check+insert+increment (app-level, no schema push) | Wrap core in `db.transaction`, extend integration test to assert rollback | `src/functions/incidents.ts` |
+| Unit 4: UNIQUE constraint | Needs live `db:push` → explicit decision + pre-tag | Present options to developer before acting | `src/db/schema.ts` |
+| Skill 6.0 bootstrap | CI scaffolding (committed 1a84c67) | Push branch | `.github/workflows/ci.yml` |
 
 ---
 

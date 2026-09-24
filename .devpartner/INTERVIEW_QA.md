@@ -54,6 +54,30 @@
 
 ---
 
+### STORY-UPVOTE-FIX-2 — DB-backed integration harness for the upvote path — 2026-09-24
+
+**Q:** "Your handler tests were skeleton existence checks. How did you get a real DB into your test suite?"
+
+**Direct answer:** I extracted the upvote logic into a plain `upvoteIncidentCore(client, incidentId, fingerprint)` function — injectable DB, no `createServerFn` framework coupling — then wrote an integration test that provisions a real Postgres connection from `TEST_DATABASE_URL` and asserts actual row counts and dedup behavior against it. CI runs a `postgres:16` service and pushes the schema before the test job.
+
+**Concept:** "Mock as little as possible" means testing the *contract* against what you own. The core function takes the DB as a parameter (Dependency Injection), so a test can hand it a client bound to a disposable database while the production server function just passes the module-level `db`. `describe.skipIf(!TEST_DATABASE_URL)` keeps the local default gate green (skips) but executes in CI where the service exists — an intentional, named conditional, not a sneaky skip.
+
+**Why / tradeoffs:** This closes the systemic gap that let the ERR-003 aggregate-bug ship: no DB test ever executed a handler. Cost: the harness needs a live DB (CI service + `pnpm db:push` before tests) and the core/serializer split adds one small function. A pure mock-DB test would be cheaper but would have asserted whatever the mock returned — too far from how the software actually runs.
+
+**In this project:** `src/functions/incidents.ts` (`upvoteIncidentCore`, used by the `upvoteIncident` server fn), `src/functions/upvotes.integration.test.ts` (truncates tables, inserts an incident, upvotes twice from one fingerprint + once from another, asserts counts 1→1→2), `.github/workflows/ci.yml` (postgres:16 service + `TEST_DATABASE_URL` + `pnpm db:push`).
+
+**Edge cases / failure modes:** If `TEST_DATABASE_URL` is accidentally unset in CI the test skips silently — mitigated because CI sets it explicitly from the service. Truncation assumes only the test writes to the DB; parallel workers could collide (the test uses `max: 1` and would need shared isolation if parallelized further).
+
+**At scale:** The pattern generalizes: every consumer-facing handler (incident create, subscriptions) graduates to a DB-backed test the same way, and the service-based CI stays green.
+
+**Interviewer's intent:** Distinguishes candidates who *say* "we should test against a real DB" from ones who can stand up the harness, wire CI, and keep the default gate usable.
+
+**Follow-ups:**
+- Q: Why not run these tests always locally? → A: `pnpm test` is the zero-setup gate; requiring a local Postgres would break onboarding. The env-gated skip is the documented compromise.
+- Q: What does the core-vs-server-fn split buy you beyond testing? → A: It moves logic out of the RPC boundary, which is what makes Unit 3's transaction wrapping testable next.
+
+---
+
 ## §D1. System Design & Architecture
 
 ### Draw this system end-to-end

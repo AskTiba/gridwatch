@@ -1,11 +1,44 @@
 import { createServerFn } from "@tanstack/react-start";
-import { db } from "~/db";
+import { db, type Database } from "~/db";
 import { incidentReports, upvotes, zones } from "~/db/schema";
 import { eq, and, desc, ilike, sql } from "drizzle-orm";
 import { sendZoneNotification } from "./notifications";
 import { reverseGeocode } from "~/lib/geocoding";
 
 export const upvoteCountSql = sql`${incidentReports.upvotes} + 1`;
+
+export type UpvoteResult =
+  | { success: true }
+  | { success: false; reason: "already_upvoted" };
+
+export async function upvoteIncidentCore(
+  client: Database,
+  incidentId: string,
+  fingerprint: string
+): Promise<UpvoteResult> {
+  const existing = await client
+    .select()
+    .from(upvotes)
+    .where(
+      and(
+        eq(upvotes.incidentId, incidentId),
+        eq(upvotes.fingerprint, fingerprint)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    return { success: false, reason: "already_upvoted" };
+  }
+
+  await client.insert(upvotes).values({ incidentId, fingerprint });
+  await client
+    .update(incidentReports)
+    .set({ upvotes: upvoteCountSql })
+    .where(eq(incidentReports.id, incidentId));
+
+  return { success: true };
+}
 
 async function findOrCreateZone(
   lat: number,
@@ -139,34 +172,7 @@ export const createIncidentReport = createServerFn({ method: "POST" })
 export const upvoteIncident = createServerFn({ method: "POST" })
   .validator((input: { incidentId: string; fingerprint: string }) => input)
   .handler(async ({ data }) => {
-    const { incidentId, fingerprint } = data;
-
-    // Check if already upvoted
-    const existing = await db
-      .select()
-      .from(upvotes)
-      .where(
-        and(
-          eq(upvotes.incidentId, incidentId),
-          eq(upvotes.fingerprint, fingerprint)
-        )
-      )
-      .limit(1);
-
-    if (existing.length > 0) {
-      return { success: false, reason: "already_upvoted" };
-    }
-
-    // Create upvote
-    await db.insert(upvotes).values({ incidentId, fingerprint });
-
-    // Increment count on incident
-    await db
-      .update(incidentReports)
-      .set({ upvotes: upvoteCountSql })
-      .where(eq(incidentReports.id, incidentId));
-
-    return { success: true };
+    return upvoteIncidentCore(db, data.incidentId, data.fingerprint);
   });
 
 export const getIncidentById = createServerFn({ method: "GET" })
