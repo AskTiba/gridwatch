@@ -98,6 +98,30 @@
 
 ---
 
+### STORY-UPVOTE-FIX-4 — Storage-layer uniqueness constraint + CI pipeline teardown — 2026-09-24
+
+**Q:** "Your dedup check is app-level. What stops a race or a second instance from inserting duplicate votes?"
+
+**Direct answer:** The storage layer now enforces it — `upvotes` gets a **composite UNIQUE index** on `(incident_id, fingerprint)`, so the database rejects a second row for the same incident/fingerprint outright. The app-level check then only serves to return the friendly `already_upvoted` message; the constraint is the authoritative backstop. A raw duplicate INSERT is asserted to reject in the DB-backed integration test.
+
+**Concept:** Two layers, different jobs. The transaction (Unit 3) makes the *sequence* atomic; the unique index makes the *boundary condition* impossible. You test each: rollback via a forced-update trigger, and uniqueness via a direct duplicate INSERT that must throw. The constraint also exposed the dirty-data trap: an earlier smoke run had left two identical rows, so `db:push` refused to create the unique index — you must dedupe first, e.g. keep the oldest row per key (`row_number()` partition delete).
+
+**Why / tradeoffs:** Correctness that survives app restarts, instance scale-out, and bugs in the check. Costs: `db:push` on live must pass a pre-flight duplicate scan (or it fails loudly — which is the good behavior), and the constraint adds a btree write cost per vote (~negligible at this scale). The alternative — locking + recheck inside the transaction — is more code and still racy if a path bypasses the app.
+
+**In this project:** `src/db/schema.ts` (`uniqueIndex("upvotes_incident_fingerprint_idx")` replacing the non-unique `index`), `src/functions/upvotes.integration.test.ts` (3rd `it`: direct duplicate INSERT must reject), `.github/workflows/ci.yml`.
+
+**Learnings worth interviewing on:**
+- The first CI run failed in 12s at the service layer, not code: publishing host port `5432:5432` died with docker `exit 125`. Fix: drop `ports:`, reference the service by its network alias `postgres:5432` — job steps and services share a network.
+- The live database connection was dead on arrival: every connection variant (pooler/direct, SSL modes) rejected `postgres.<ref>`, and `db.<ref>.supabase.co` doesn't resolve. It had never been exercised because **all DB work to date was verified on scratch Postgres**. First real integration test with a live-bound credential exposed it — evidence that CI/service-based DB tests earn their keep.
+
+**Interviewer's intent:** Probes whether you understand *where* integrity guarantees must live (model: the DB, not the app), how to add constraints safely to a dirty table, and how to debug "works in CI but not prod" infrastructure failures.
+
+**Follow-ups:**
+- Q: Which is the de-dupe authority after this change? → A: The unique index; the app check is UX. A violation surfaces as a thrown constraint error and rolls back the enclosing transaction.
+- Q: Why can't the count be derived instead of stored? → A: It could via `SELECT count(*)`, but a materialized count on the report row keeps list queries cheap and survives the write path — the constraint makes the two consistent.
+
+---
+
 ## §D1. System Design & Architecture
 
 ### Draw this system end-to-end

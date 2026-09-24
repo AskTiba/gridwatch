@@ -25,6 +25,28 @@
 
 ## Errors
 
+### ERR-004 — 2026-09-24 — Live DATABASE_URL cannot authenticate against Supabase (deploy blocker)
+
+| Field | Content |
+|---|---|
+| **Context** | Unit 4 — pushing the `UNIQUE(incident_id, fingerprint)` upvote constraint to the live Supabase DB via `pnpm db:push` |
+| **Symptom** | Every connection attempt fails. Original URL → `(ENOTFOUND) tenant/user postgres.mcznaoulxtwqnnhmaaot not found`. Direct host variant `db.<ref>.supabase.co` → `getaddrinfo ENOTFOUND`. Pooler user `postgres` → `no tenant identifier provided`. SSL `no-verify` → `self-signed certificate` (TLS on wrong endpoint). |
+| **Root cause** | The project ref `mcznaoulxtwqnnhmaaot` in `.env.local` does not resolve as a Supabase tenant, and the pooler rejects its `postgres.<ref>` user. Credentials/ref are stale or belong to a different project/customer. No prior unit verified live connectivity — all DB work was validated on scratch Postgres, so this was first exposed now. |
+| **Resolution** | **Not yet resolved — blocked.** Pre-tag `pre-unique-upvotes-20260924` created; constraint is verified locally + in CI on scratch Postgres. Awaiting a verified live connection string from the developer account before `db:push` touches live. |
+| **Prevention** | A connectivity pre-check step before any live `db:push`; seed `.env.example` with connection-string shape (never real creds); routine app DB calls against live should go through an identity check in CI (separate, session-pooler job) |
+| **Related** | Unit 4 constraint work; DECISIONS.md risk protocol (pre-tag before live mutation) |
+
+### ERR-005 — 2026-09-24 — CI service container fails: port publish exit 125
+
+| Field | Content |
+|---|---|
+| **Context** | First push to `origin/main` after Units 2–3 — validating `.github/workflows/ci.yml` (postgres:16 service) |
+| **Symptom** | Job failed in 12s during `Initialize containers`: `docker create ... -p 5432:5432 ... postgres:16-alpine` → `Exit code 125` |
+| **Root cause** | Publishing host port `5432:5432` for the service container failed on the GH-hosted runner (exit 125 from `docker create`); port publishing on shared runners is a common flake/restriction. |
+| **Resolution** | Removed the `ports:` mapping and point `DATABASE_URL`/`TEST_DATABASE_URL` at the service network alias `postgres:5432` — GH Actions job steps and service containers share a network, so no host publish is needed. |
+| **Prevention** | Prefer service-alias connectivity in CI; only resort to host ports when a tool cannot use the alias |
+| **Related** | `ci.yml` env block |
+
 ### ERR-003 — 2026-09-24 — Upvote count update emits invalid Postgres SQL
 
 | Field | Content |

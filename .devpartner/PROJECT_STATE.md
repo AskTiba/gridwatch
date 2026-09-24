@@ -32,9 +32,9 @@
 
 | Story/Task | Current Unit | Exact Next Action | Files |
 |---|---|---|---|
-| DB-backed integration harness | Unit 2 done (committed c7eff19) | Push branch → watch CI run integration test against postgres service | `src/functions/upvotes.integration.test.ts`, `.github/workflows/ci.yml` |
-| Upvote atomicity | Unit 3 done (commit pending) | Commit gate → surface | `src/functions/incidents.ts` |
-| Unit 4: UNIQUE constraint | Needs live `db:push` → explicit decision + pre-tag | Present options to developer before acting | `src/db/schema.ts` |
+| Unique upvote constraint (Unit 4) | Code done + verified on scratch; **live push BLOCKED — ERR-004 stale live creds** | Stage/commit code, then get verified live connection string from developer → pre-check dups → `db:push` | `src/db/schema.ts` |
+| First CI validation run | Found + fixed ERR-005 (service port publish) | Commit fix + re-push → watch run pass incl. integration test | `.github/workflows/ci.yml` |
+| Live connectivity (ERR-004) | Blocker, unresolved | Developer provides/verifies Supabase connection string; adopt `db:push` pre-flight connectivity check in docs | `drizzle.config.ts`, `.env.local` |
 | Skill 6.0 bootstrap | CI scaffolding (committed 1a84c67) | Push branch | `.github/workflows/ci.yml` |
 
 ---

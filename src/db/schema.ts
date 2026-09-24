@@ -7,6 +7,7 @@ import {
   uuid,
   jsonb,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // --- Zones ---
@@ -87,7 +88,7 @@ export const upvotes = pgTable(
     fingerprint: text("fingerprint").notNull(), // browser fingerprint for anonymous dedup
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (t) => [index("upvotes_incident_fingerprint_idx").on(t.incidentId, t.fingerprint)]
+  (t) => [uniqueIndex("upvotes_incident_fingerprint_idx").on(t.incidentId, t.fingerprint)]
 );
 
 // --- Notification Subscriptions ---

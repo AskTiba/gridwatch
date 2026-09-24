@@ -79,6 +79,27 @@ describe.skipIf(!connectionString)(
       expect(voteRows).toHaveLength(1);
     });
 
+    it("enforces a single upvote per incident and fingerprint at the storage layer", async () => {
+      const [incident] = await db
+        .insert(incidentReports)
+        .values({
+          type: "water_leak",
+          description: "uniqueness test leak",
+          latitude: "0.32",
+          longitude: "32.52",
+        })
+        .returning({ id: incidentReports.id });
+
+      await db
+        .insert(upvotes)
+        .values({ incidentId: incident.id, fingerprint: "fp-unique" });
+      await expect(
+        db
+          .insert(upvotes)
+          .values({ incidentId: incident.id, fingerprint: "fp-unique" })
+      ).rejects.toThrow();
+    });
+
     it("rolls back the inserted vote row if the count update fails", async () => {
       const [incident] = await db
         .insert(incidentReports)
