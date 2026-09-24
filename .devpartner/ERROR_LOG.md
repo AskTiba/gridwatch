@@ -36,16 +36,16 @@
 | **Prevention** | A connectivity pre-check step before any live `db:push`; seed `.env.example` with connection-string shape (never real creds); routine app DB calls against live should go through an identity check in CI (separate, session-pooler job) |
 | **Related** | Unit 4 constraint work; DECISIONS.md risk protocol (pre-tag before live mutation) |
 
-### ERR-005 — 2026-09-24 — CI service container fails: port publish exit 125
+### ERR-005 — 2026-09-24 — CI service container fails: docker create exit 125 (health-cmd parsing)
 
 | Field | Content |
 |---|---|
-| **Context** | First push to `origin/main` after Units 2–3 — validating `.github/workflows/ci.yml` (postgres:16 service) |
-| **Symptom** | Job failed in 12s during `Initialize containers`: `docker create ... -p 5432:5432 ... postgres:16-alpine` → `Exit code 125` |
-| **Root cause** | Publishing host port `5432:5432` for the service container failed on the GH-hosted runner (exit 125 from `docker create`); port publishing on shared runners is a common flake/restriction. |
-| **Resolution** | Removed the `ports:` mapping and point `DATABASE_URL`/`TEST_DATABASE_URL` at the service network alias `postgres:5432` — GH Actions job steps and service containers share a network, so no host publish is needed. |
-| **Prevention** | Prefer service-alias connectivity in CI; only resort to host ports when a tool cannot use the alias |
-| **Related** | `ci.yml` env block |
+| **Context** | First pushes to `origin/main` after Units 2–3 — validating `.github/workflows/ci.yml` (postgres:16 service) |
+| **Symptom** | Job failed in ~12s during `Initialize containers`: `docker create ... postgres:16-alpine` → `Usage: docker create [OPTIONS] IMAGE [COMMAND] [ARG...]` then `##[error]Exit code 125` |
+| **Root cause** | The multi-word `--health-cmd pg_isready -U postgres` in the service `options:` string is split by the runner's arg parsing into `--health-cmd pg_isready` + `-U postgres`; docker then reads `-U` as an unknown docker flag and aborts with usage + exit 125.\n\nⓘ *First diagnosis (blamed host `-p 5432:5432` publish) was wrong — both runs failed on the same health-cmd split; the port publish was never reached.* The alias-based `postgres:5432` URL change is still correct and kept. |
+| **Resolution** | Dropped the `-U postgres` tokens → single-word health command `--health-cmd pg_isready` (default user/DB in the container matches POSTGRES_USER=postgres). Service reachable at its network alias `postgres:5432`; no host port publish. |
+| **Prevention** | Keep service `--health-cmd` single-word; if a multi-word probe is needed, use a quoted image `command` wrapper instead of `options`; validate service init BEFORE wiring app steps |
+| **Related** | `ci.yml` `services:` block; the erroneous first pass is superseded by this entry |
 
 ### ERR-003 — 2026-09-24 — Upvote count update emits invalid Postgres SQL
 
