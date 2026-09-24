@@ -7,4 +7,3 @@ dist
 *.log
 .vite
 .vscode/!.vscode/extensions.json
-src/routeTree.gen.ts
