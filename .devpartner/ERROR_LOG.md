@@ -25,6 +25,17 @@
 
 ## Errors
 
+### ERR-003 — 2026-09-24 — Upvote count update emits invalid Postgres SQL
+
+| Field | Content |
+|---|---|
+| **Context** | Bootstrap review of `src/functions/incidents.ts` during Skill 6.0 install |
+| **Symptom** | Every `upvoteIncident` call 500s after inserting the upvote row; user sees an error, and the un-transacted insert leaves a half-applied vote (retry then falsely reports "already_upvoted") |
+| **Root cause** | `incidents.ts:164` used `.set({ upvotes: drizzleCount(upvotes.id) })` — `count()` is an aggregate and Postgres rejects aggregate functions in the UPDATE SET clause (proven on scratch Postgres 16: `missing FROM-clause entry` / `aggregate functions are not allowed in UPDATE`) |
+| **Resolution** | Replaced with `upvoteCountSql = sql\`${incidentReports.upvotes} + 1\`` — an atomic increment; exported from `incidents.ts` and covered by a rendering regression test (`incidents.test.ts` "upvote count update") |
+| **Prevention** | New test asserts the SET expression contains `+ 1` and no `count(`; systemic gap — no DB-backed integration test executed any handler (tracked, next unit) |
+| **Related** | INTERVIEW_QA §D5 "Why is the upvote stored in a separate table" (edge cases); DECISIONS DEBT — DB-facing handler tests missing |
+
 ### ERR-002 — 2026-08-28 — Web push send crash + GPS zone auto-create failure
 
 | Field | Content |

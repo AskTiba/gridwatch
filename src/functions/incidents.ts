@@ -1,9 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { db } from "~/db";
 import { incidentReports, upvotes, zones } from "~/db/schema";
-import { eq, and, desc, ilike, count as drizzleCount } from "drizzle-orm";
+import { eq, and, desc, ilike, sql } from "drizzle-orm";
 import { sendZoneNotification } from "./notifications";
 import { reverseGeocode } from "~/lib/geocoding";
+
+export const upvoteCountSql = sql`${incidentReports.upvotes} + 1`;
 
 async function findOrCreateZone(
   lat: number,
@@ -161,7 +163,7 @@ export const upvoteIncident = createServerFn({ method: "POST" })
     // Increment count on incident
     await db
       .update(incidentReports)
-      .set({ upvotes: drizzleCount(upvotes.id) })
+      .set({ upvotes: upvoteCountSql })
       .where(eq(incidentReports.id, incidentId));
 
     return { success: true };

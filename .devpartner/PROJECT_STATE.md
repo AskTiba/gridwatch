@@ -32,8 +32,9 @@
 
 | Story/Task | Current Unit | Exact Next Action | Files |
 |---|---|---|---|
-| Skill 6.0 bootstrap (self-install) | CI scaffolding | Verify `.github/workflows/ci.yml` runs against GitHub (push branch) | `.github/workflows/ci.yml` |
-| Sprint 5: Deployment & Polish | CI/CD pipeline | After CI scaffold review → next backlog item | — |
+| ERR-003: broken upvote count update | Complete (Unit 1, commit pending) | Verify on a pushed branch / review diff | `src/functions/incidents.ts`, `incidents.test.ts` |
+| Skill 6.0 bootstrap | CI scaffolding (committed 1a84c67) | Push branch → watch CI run | `.github/workflows/ci.yml` |
+| Sprint 5: Deployment & Polish | Upvote fix shipped → DB-backed test harness next | Add integration test for `upvoteIncident` incl. transaction wrapping | `src/functions/incidents.test.ts` |
 
 ---
 

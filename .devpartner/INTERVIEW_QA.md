@@ -28,6 +28,32 @@
 
 ---
 
+## Story Entries (Chronological)
+
+### STORY-UPVOTE-FIX-1 — Atomic upvote increment — 2026-09-24
+
+**Q:** "A code review flagged that your upvote handler used `count()` in an UPDATE. What was the bug, and how did you prove and fix it?"
+
+**Direct answer:** `count()` is an aggregate, and Postgres won't allow aggregates in the SET clause — so the update threw every time. I proved it on a throwaway Postgres container, then replaced it with an atomic `column + 1` increment and added a regression test that renders the expression and asserts its shape.
+
+**Concept:** Aggregates (`count`, `sum`, `avg`) collapse many rows into one value; UPDATE SET assigns a value per refined row, so an aggregate there is a semantic mismatch the planner rejects. `column + 1` is an atomic read-modify-write that Postgres executes without a subquery.
+
+**Why / tradeoffs:** Increment loses self-healing if duplicate votes ever slip through the app-level dedup (a unique `(incident_id, fingerprint)` constraint is the eventual fix). A scalar subquery `(SELECT count(*) FROM upvotes WHERE ...)` would self-heal but recomputes on every vote and is heavier for a hot path.
+
+**In this project:** `src/functions/incidents.ts` — `upvoteCountSql = sql\`${incidentReports.upvotes} + 1\`` used in `upvoteIncident`; regression test in `incidents.test.ts` renders it via `PgDialect.sqlToQuery` and asserts `+ 1` present / no `count(`.
+
+**Edge cases / failure modes:** The dedup check-then-insert is still non-atomic — two concurrent same-fingerprint votes can both insert. The counter stays `+ 1` per successful insert, so the *count* matches the *rows*, which is the consistency that matters today.
+
+**At scale:** Row-count and counter stay bound as long as inserts are the only writer. When abuse appears, the unique constraint + retry semantics (return "already upvoted") become the authoritative guard.
+
+**Interviewer's intent:** Probes SQL literacy — whether you recognize invalid aggregate usage, how you'd verify a suspected SQL bug before fixing, and whether you know the atomic-increment pattern.
+
+**Follow-ups:**
+- Q: Why not wrap the insert and update in a transaction? → A: A transaction would prevent the orphan-vote state, but the increment is still the concurrency fix; do both when the DB-backed test harness lands.
+- Q: How does Drizzle decide to render the column reference? → A: The `sql` template interpolates a column node, so it renders `"incident_reports"."upvotes"` — reference-safe, parameterized only for the literal.
+
+---
+
 ## §D1. System Design & Architecture
 
 ### Draw this system end-to-end
